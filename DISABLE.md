@@ -28,16 +28,15 @@ adb shell pm list packages -d                    # disabled
 adb shell pm list packages -f -s                 # with APK paths
 ```
 
-## PODOFO status — not present
+## PODOFO status — disabled by owner, IDs to confirm
 
-The two owner-reported apps, **PODOFO Voice** and **PODOFO Plus**, do **not**
-exist on the device. Even `pm list packages -u | grep -i podo` returns nothing,
-so they were not merely disabled or uninstalled-for-user — no trace remains.
-Possible explanations: they were removed while the unit was rooted, or the
-reported names differ from the real package IDs. Re-check with:
+The two owner-reported apps, **PODOFO Voice** and **PODOFO Plus**, were
+**disabled by the owner** — not removed — and the unit has **not** been rooted.
+Their exact package IDs are still to be confirmed on the device. Verify with:
 
 ```sh
 adb shell pm list packages -u | grep -i -E "podo|pve|voice|plus"
+adb shell pm list packages -u -d --user 0
 ```
 
 Candidate OEM suite that may correspond to the "Podofo" apps: `com.pve.*`
@@ -86,8 +85,8 @@ Also keep all core AOSP infrastructure (do not disable): `android`,
 | Name | Package | Status | Notes |
 |---|---|---|---|
 | Voice robot overlay | `com.txznet.txz` | Disabled for user 0 | The robot disappeared. Re-enable with `adb shell pm enable --user 0 com.txznet.txz`. |
-| PODOFO Voice | *not present* | Disabled by owner (unconfirmed) | No package found on the device. |
-| PODOFO Plus | *not present* | Disabled by owner (unconfirmed) | No package found on the device. |
+| PODOFO Voice | *to confirm* | Disabled by owner (not removed) | Exact package ID still to confirm on the device. |
+| PODOFO Plus | *to confirm* | Disabled by owner (not removed) | Exact package ID still to confirm on the device. |
 
 ## Category C — Safe candidates (test one at a time)
 
