@@ -15,6 +15,7 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import render_preview
+from refine_surfaces import REVISION, refine_surfaces
 namespace = vars(render_preview)
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output" / "studio_black"
@@ -196,6 +197,7 @@ def main():
     bpy.context.view_layer.update()
     remove_sunroof()
     finish_materials()
+    refine_surfaces()
     glass_thickness()
     add_area = namespace["add_area"]
     add_area("Large front softbox", (-3, -4, 6), 1050, 5, (1, 0.96, 0.91))
@@ -224,7 +226,7 @@ def main():
     for frame in range(1, 212):
         phase = 2 * math.pi * (frame - 1) / 210
         angle = math.radians(42) + phase
-        radius = 9.7
+        radius = 12.61
         camera.location = (radius * math.sin(angle), -radius * math.cos(angle), 2.45)
         look_at(camera, (0, 0, 0.82))
         camera.keyframe_insert(data_path="location", frame=frame)
@@ -252,8 +254,8 @@ def main():
     scene.render.image_settings.color_mode = "RGB"
     scene.view_settings.look = "AgX - Medium High Contrast"
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    scene.render.filepath = "//output/studio_black/frames/golf_"
-    (OUTPUT / "frames").mkdir(exist_ok=True)
+    scene.render.filepath = f"//output/studio_black/{REVISION}/frames/golf_"
+    (OUTPUT / REVISION / "frames").mkdir(parents=True, exist_ok=True)
     scene.frame_set(1)
     bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT / "golf_mk5_studio_black.blend"))
@@ -265,4 +267,5 @@ def main():
         bpy.ops.render.render(write_still=True)
 
 
-main()
+if __name__ == "__main__":
+    main()
