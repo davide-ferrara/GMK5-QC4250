@@ -429,66 +429,68 @@ private fun ProjectInfoScreen(onClose: () -> Unit) {
                 ) {
                     Text(stringResource(R.string.open_repository))
                 }
-                Button(
-                    enabled = !updateInProgress,
-                    onClick = {
-                        updateInProgress = true
-                        updateStatus = context.getString(R.string.update_checking)
-                        scope.launch {
-                            when (val result = updater.downloadLatest { version, percent ->
-                                withContext(Dispatchers.Main.immediate) {
-                                    updateStatus = context.getString(
-                                        R.string.update_downloading,
-                                        version,
-                                        percent,
-                                    )
-                                }
-                            }) {
-                                is UpdateResult.Current -> {
-                                    updateStatus = context.getString(
-                                        R.string.update_current,
-                                        result.version,
-                                    )
-                                    updateInProgress = false
-                                }
-                                is UpdateResult.Downloaded -> {
-                                    downloadedApk = result.apk
-                                    updateStatus = context.getString(R.string.update_preparing)
-                                    if (updater.canInstallPackages()) {
-                                        if (!updater.install(result.apk)) {
-                                            updateStatus = context.getString(R.string.update_failed)
-                                        }
+                if (BuildConfig.IS_STABLE) {
+                    Button(
+                        enabled = !updateInProgress,
+                        onClick = {
+                            updateInProgress = true
+                            updateStatus = context.getString(R.string.update_checking)
+                            scope.launch {
+                                when (val result = updater.downloadLatest { version, percent ->
+                                    withContext(Dispatchers.Main.immediate) {
+                                        updateStatus = context.getString(
+                                            R.string.update_downloading,
+                                            version,
+                                            percent,
+                                        )
+                                    }
+                                }) {
+                                    is UpdateResult.Current -> {
+                                        updateStatus = context.getString(
+                                            R.string.update_current,
+                                            result.version,
+                                        )
                                         updateInProgress = false
-                                    } else {
-                                        runCatching {
-                                            installPermissionLauncher.launch(
-                                                updater.installPermissionIntent(),
-                                            )
-                                        }.onFailure {
-                                            updateStatus = context.getString(
-                                                R.string.update_permission_denied,
-                                            )
+                                    }
+                                    is UpdateResult.Downloaded -> {
+                                        downloadedApk = result.apk
+                                        updateStatus = context.getString(R.string.update_preparing)
+                                        if (updater.canInstallPackages()) {
+                                            if (!updater.install(result.apk)) {
+                                                updateStatus = context.getString(R.string.update_failed)
+                                            }
                                             updateInProgress = false
+                                        } else {
+                                            runCatching {
+                                                installPermissionLauncher.launch(
+                                                    updater.installPermissionIntent(),
+                                                )
+                                            }.onFailure {
+                                                updateStatus = context.getString(
+                                                    R.string.update_permission_denied,
+                                                )
+                                                updateInProgress = false
+                                            }
                                         }
                                     }
-                                }
-                                UpdateResult.NoRelease -> {
-                                    updateStatus = context.getString(R.string.update_no_release)
-                                    updateInProgress = false
-                                }
-                                UpdateResult.InvalidApk -> {
-                                    updateStatus = context.getString(R.string.update_invalid_apk)
-                                    updateInProgress = false
-                                }
-                                UpdateResult.Failed -> {
-                                    updateStatus = context.getString(R.string.update_failed)
-                                    updateInProgress = false
+                                    UpdateResult.NoRelease -> {
+                                        updateStatus = context.getString(R.string.update_no_release)
+                                        updateInProgress = false
+                                    }
+                                    UpdateResult.InvalidApk -> {
+                                        updateStatus = context.getString(R.string.update_invalid_apk)
+                                        updateInProgress = false
+                                    }
+                                    UpdateResult.Failed -> {
+                                        updateStatus = context.getString(R.string.update_failed)
+                                        updateInProgress = false
+                                    }
                                 }
                             }
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.check_updates))
+                        },
+                    ) {
+                        Text(stringResource(R.string.check_updates))
+                    }
                 }
             }
         }

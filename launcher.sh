@@ -10,9 +10,12 @@ GOLF_GRADLE_CACHE_DIR="$GOLF_PROJECT_DIR/.gradle-cache"
 GOLF_RUNTIME_DIR="$GOLF_PROJECT_DIR/.runtime"
 GOLF_AVD_NAME="golf_mk5_api30"
 GOLF_EMULATOR_SERIAL="emulator-5554"
-GOLF_APK="$GOLF_PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
-GOLF_PACKAGE="com.golfv.launcher"
-GOLF_ACTIVITY="$GOLF_PACKAGE/.MainActivity"
+GOLF_DEV_APK="$GOLF_PROJECT_DIR/app/build/outputs/apk/dev/debug/app-dev-debug.apk"
+GOLF_STABLE_APK="$GOLF_PROJECT_DIR/app/build/outputs/apk/stable/debug/app-stable-debug.apk"
+GOLF_DEV_PACKAGE="com.golfv.launcher.dev"
+GOLF_STABLE_PACKAGE="com.golfv.launcher"
+GOLF_DEV_ACTIVITY="$GOLF_DEV_PACKAGE/com.golfv.launcher.MainActivity"
+GOLF_STABLE_ACTIVITY="$GOLF_STABLE_PACKAGE/.MainActivity"
 GOLF_CMDLINE_TOOLS_VERSION="15859902"
 GOLF_CMDLINE_TOOLS_SHA256="4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583"
 
@@ -39,6 +42,10 @@ Usage:
   ./launcher.sh test
   ./launcher.sh install [ADB_SERIAL]
   ./launcher.sh launch [ADB_SERIAL]
+  ./launcher.sh build-stable
+  ./launcher.sh install-stable [ADB_SERIAL]
+  ./launcher.sh launch-stable [ADB_SERIAL]
+  ./launcher.sh set-home-stable [ADB_SERIAL]
   ./launcher.sh dev
   ./launcher.sh stop
   ./launcher.sh doctor
@@ -46,13 +53,17 @@ Usage:
 Commands:
   setup    Download the local Android SDK, accept its licenses interactively,
            install Android 11 emulator packages, and create the 1024x600 AVD.
-  build    Compile the debug APK.
+  build    Compile the dev APK (com.golfv.launcher.dev).
   start    Open the Android 11 emulator; use --headless for CI-style use.
   run      Build, install, and launch on the local emulator.
   test     Run Compose UI tests on the local emulator, then restore the app.
-  install  Install the debug APK. Defaults to emulator-5554. Passing an ADB
+  install  Install the dev APK. Defaults to emulator-5554. Passing an ADB
            serial is required to target a different device such as the car.
-  launch   Launch an already installed APK. Defaults to emulator-5554.
+  launch   Launch the dev APK. Defaults to emulator-5554.
+  build-stable     Compile the stable HOME APK without installing it.
+  install-stable   Explicitly update/install the stable APK.
+  launch-stable    Launch the installed stable APK.
+  set-home-stable  Select the stable APK as Android's default HOME handler.
   dev      Start emulator, build, install, and launch in one command.
   stop     Stop only the emulator on port 5554.
   doctor   Check local requirements and print connected ADB devices.
@@ -61,6 +72,7 @@ Examples:
   ./launcher.sh dev
   ./launcher.sh test
   ./launcher.sh install 10.60.146.92:5555
+  ./launcher.sh set-home-stable 10.60.146.92:5555
 EOF
 }
 
@@ -266,28 +278,67 @@ start_emulator() {
 }
 
 build_app() {
-    note "Building debug APK..."
-    gradle :app:assembleDebug
-    [[ -f "$GOLF_APK" ]] || die "Build completed without producing $GOLF_APK"
-    note "APK ready: $GOLF_APK"
+    note "Building dev APK..."
+    gradle :app:assembleDevDebug
+    [[ -f "$GOLF_DEV_APK" ]] || die "Build completed without producing $GOLF_DEV_APK"
+    note "Dev APK ready: $GOLF_DEV_APK"
+}
+
+build_stable_app() {
+    note "Building stable APK..."
+    gradle :app:assembleStableDebug
+    [[ -f "$GOLF_STABLE_APK" ]] ||
+        die "Build completed without producing $GOLF_STABLE_APK"
+    note "Stable APK ready: $GOLF_STABLE_APK"
 }
 
 install_app() {
     local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
     ensure_sdk
-    [[ -f "$GOLF_APK" ]] || die "APK not found. Run: ./launcher.sh build"
+    [[ -f "$GOLF_DEV_APK" ]] || die "Dev APK not found. Run: ./launcher.sh build"
     [[ "$(adb_for "$golf_serial" get-state 2>/dev/null || true)" == "device" ]] ||
         die "ADB device is not available: $golf_serial"
 
-    note "Installing APK on $golf_serial..."
-    adb_for "$golf_serial" install -r "$GOLF_APK"
+    note "Installing dev APK on $golf_serial..."
+    adb_for "$golf_serial" install -r "$GOLF_DEV_APK"
 }
 
 launch_app() {
     local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
     ensure_sdk
-    note "Launching $GOLF_ACTIVITY on $golf_serial..."
-    adb_for "$golf_serial" shell am start -n "$GOLF_ACTIVITY"
+    note "Launching $GOLF_DEV_ACTIVITY on $golf_serial..."
+    adb_for "$golf_serial" shell am start -n "$GOLF_DEV_ACTIVITY"
+}
+
+install_stable_app() {
+    local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
+    ensure_sdk
+    [[ -f "$GOLF_STABLE_APK" ]] ||
+        die "Stable APK not found. Run: ./launcher.sh build-stable"
+    [[ "$(adb_for "$golf_serial" get-state 2>/dev/null || true)" == "device" ]] ||
+        die "ADB device is not available: $golf_serial"
+
+    note "Installing stable APK on $golf_serial..."
+    adb_for "$golf_serial" install -r "$GOLF_STABLE_APK"
+}
+
+launch_stable_app() {
+    local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
+    ensure_sdk
+    note "Launching $GOLF_STABLE_ACTIVITY on $golf_serial..."
+    adb_for "$golf_serial" shell am start -n "$GOLF_STABLE_ACTIVITY"
+}
+
+set_home_stable() {
+    local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
+    ensure_sdk
+    [[ "$(adb_for "$golf_serial" get-state 2>/dev/null || true)" == "device" ]] ||
+        die "ADB device is not available: $golf_serial"
+    adb_for "$golf_serial" shell pm path "$GOLF_STABLE_PACKAGE" >/dev/null ||
+        die "Stable package is not installed on $golf_serial"
+
+    note "Selecting the stable package as HOME on $golf_serial..."
+    adb_for "$golf_serial" shell cmd package set-home-activity "$GOLF_STABLE_ACTIVITY"
 }
 
 run_app() {
@@ -302,7 +353,7 @@ test_app() {
     note "Running Compose UI tests on $GOLF_EMULATOR_SERIAL..."
     ANDROID_SERIAL="$GOLF_EMULATOR_SERIAL" gradle \
         --no-configuration-cache \
-        :app:connectedDebugAndroidTest
+        :app:connectedDevDebugAndroidTest
 
     # Android's connected-test runner removes the tested APK when it finishes.
     build_app
@@ -331,7 +382,8 @@ doctor() {
     fi
     printf 'SDK:      %s\n' "$([[ -x "$GOLF_SDKMANAGER" ]] && printf ready || printf missing)"
     printf 'Emulator: %s\n' "$([[ -x "$GOLF_EMULATOR" ]] && printf ready || printf missing)"
-    printf 'APK:      %s\n' "$([[ -f "$GOLF_APK" ]] && printf '%s' "$GOLF_APK" || printf 'not built')"
+    printf 'Dev APK:  %s\n' "$([[ -f "$GOLF_DEV_APK" ]] && printf '%s' "$GOLF_DEV_APK" || printf 'not built')"
+    printf 'Stable:   %s\n' "$([[ -f "$GOLF_STABLE_APK" ]] && printf '%s' "$GOLF_STABLE_APK" || printf 'not built')"
     if [[ -x "$GOLF_EMULATOR" ]]; then
         "$GOLF_EMULATOR" -accel-check || true
     fi
@@ -351,6 +403,9 @@ main() {
         build)
             build_app
             ;;
+        build-stable)
+            build_stable_app
+            ;;
         start)
             shift
             start_emulator "${1:-}"
@@ -366,6 +421,15 @@ main() {
             ;;
         launch)
             launch_app "${2:-$GOLF_EMULATOR_SERIAL}"
+            ;;
+        install-stable)
+            install_stable_app "${2:-$GOLF_EMULATOR_SERIAL}"
+            ;;
+        launch-stable)
+            launch_stable_app "${2:-$GOLF_EMULATOR_SERIAL}"
+            ;;
+        set-home-stable)
+            set_home_stable "${2:-$GOLF_EMULATOR_SERIAL}"
             ;;
         dev)
             run_app

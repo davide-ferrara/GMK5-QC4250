@@ -52,11 +52,21 @@ make doctor      # Check Java, SDK, KVM, APK, and connected ADB devices
 make help        # Show every available command
 ```
 
-The generated debug APK is located at:
+The normal development commands build a separate app named **Golf Mk5 Test**.
+It has package `com.golfv.launcher.dev`, cannot become the HOME app, and is
+safe to install beside the stable launcher. The generated APK is located at:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/dev/debug/app-dev-debug.apk
 ```
+
+The stable package remains `com.golfv.launcher`. Updating it always requires
+the explicit `make build-stable` and `make install-stable` commands. Select the
+already installed stable package as HOME with `make set-home-stable`.
+
+Git follows the same split: `main` contains the tested stable baseline, while
+new work is committed and pushed to `dev`. Merge `dev` into `main` only after
+the dev APK has passed the tablet test.
 
 ### Installing on the head unit
 
@@ -69,14 +79,15 @@ adb devices -l
 Then install and launch using that explicit serial:
 
 ```sh
-make install DEVICE=DEVICE_SERIAL
-make launch DEVICE=DEVICE_SERIAL
+make install DEVICE=DEVICE_SERIAL       # dev, installed alongside stable
+make launch DEVICE=DEVICE_SERIAL        # dev
+make set-home-stable DEVICE=DEVICE_SERIAL
 ```
 
 Without `DEVICE=...`, the Make targets default to `emulator-5554`. This avoids
-accidentally installing a development build on the car when multiple ADB
-devices are connected. Installing the APK does not select it as the default
-HOME application and does not disable either OEM launcher.
+accidentally installing on the car when multiple ADB devices are connected.
+The dev APK does not register as a HOME handler. Selecting stable as HOME does
+not disable either OEM launcher.
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for setup details and local generated
 directories.

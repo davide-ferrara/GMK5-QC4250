@@ -13,3 +13,13 @@ The Volkswagen name and logo are trademarks of their respective owner. This
 project uses the image for a personal, vehicle-specific launcher. Review the
 source site's terms and trademark requirements before redistributing the APK or
 publishing the asset in a public repository.
+
+## Welcome sound
+
+- File: `app/src/main/res/raw/welcome_sound.flac`
+- Title: “Melancholy UI Chime”
+- Author: plasterbrain
+- Source: <https://freesound.org/people/plasterbrain/sounds/419492/>
+- Retrieved: 2026-09-17
+- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
+- Local processing: none; original FLAC retained (44.1 kHz, stereo, 1.93 s).
