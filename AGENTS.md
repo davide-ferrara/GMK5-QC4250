@@ -4,7 +4,7 @@ Investigation of an aftermarket Android head unit installed in a Volkswagen
 Golf Mk5. The project records verified package and activity findings that help
 identify the OEM launcher, factory settings, voice overlay, CAN bus, and
 rear-camera components before making further changes. Inspection was read-only
-except for the explicitly documented, reversible voice-overlay test below.
+except for the explicitly documented, reversible per-user disable tests below.
 
 **Suggested GitHub repository name:** `golf-mk5-qc4250`
 
@@ -29,6 +29,7 @@ except for the explicitly documented, reversible voice-overlay test below.
 | Voice/vehicle adapter | `com.txznet.smartadapter` | `/vendor/app/TXZO/TXZO.apk` | Receives voice, ACC, backcar, media-source, and weather-view events; treat as vehicle-integrated. |
 | Voice assistant companion | `com.txznet.aipal` | `/vendor/app/TXZAIPal/TXZAIPal.apk` | TXZ companion app. |
 | TXZ weather | `com.txznet.weather` | `/vendor/app/TXZWeather/TXZWeather.apk` | TXZ weather component. |
+| OEM music | `com.acloud.stub.localmusic` / `.QtActivity` | `/odmdir/system/app/GalaMusic/GalaMusic.apk` | Disabling it for user 0 stopped the MEDIA button from launching the unwanted bundled music. |
 | Rear camera | `com.xygala.backcar` | `/odmdir/system/app/GalaBackcar/GalaBackcar.apk` | `BackCarService` process/window observed while the reverse-camera view was active; the prior Android activity remained resumed. |
 | CAN bus | `com.kyhero.car.myhost` | `/odmdir/system/app/CanBus/CanBus.apk` | Vehicle integration; do not disable casually. |
 | CAN bus (second component) | `com.kyhero.car.myhost2` | `/odmdir/system/app/CanBus2/CanBus2.apk` | Vehicle integration; do not disable casually. |
@@ -40,6 +41,17 @@ re-enable with:
 
 ```sh
 adb shell pm enable --user 0 com.txznet.txz
+```
+
+The OEM GalaMusic app (`com.acloud.stub.localmusic`) was also disabled for user
+0 after confirming that it handled the unwanted MEDIA-button playback. The
+owner verified that the change works. Two bundled tracks were found at
+`/system/media/insidefiles/MeiXiaoqin-No.mp3` and
+`/system/media/insidefiles/a-Beleve.mp3`; they were not deleted. Restore the app
+with:
+
+```sh
+adb shell pm enable --user 0 com.acloud.stub.localmusic
 ```
 
 Two further apps reported disabled by the owner, whose exact package IDs are

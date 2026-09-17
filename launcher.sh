@@ -11,11 +11,11 @@ GOLF_RUNTIME_DIR="$GOLF_PROJECT_DIR/.runtime"
 GOLF_AVD_NAME="golf_mk5_api30"
 GOLF_EMULATOR_SERIAL="emulator-5554"
 GOLF_DEV_APK="$GOLF_PROJECT_DIR/app/build/outputs/apk/dev/debug/app-dev-debug.apk"
-GOLF_STABLE_APK="$GOLF_PROJECT_DIR/app/build/outputs/apk/stable/debug/app-stable-debug.apk"
+GOLF_STABLE_APK="$GOLF_PROJECT_DIR/app/build/outputs/apk/stable/optimized/app-stable-optimized.apk"
 GOLF_DEV_PACKAGE="com.golfv.launcher.dev"
-GOLF_STABLE_PACKAGE="com.golfv.launcher"
+GOLF_STABLE_PACKAGE="com.golfv.launcher.optimized"
 GOLF_DEV_ACTIVITY="$GOLF_DEV_PACKAGE/com.golfv.launcher.MainActivity"
-GOLF_STABLE_ACTIVITY="$GOLF_STABLE_PACKAGE/.MainActivity"
+GOLF_STABLE_ACTIVITY="$GOLF_STABLE_PACKAGE/com.golfv.launcher.MainActivity"
 GOLF_CMDLINE_TOOLS_VERSION="15859902"
 GOLF_CMDLINE_TOOLS_SHA256="4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583"
 
@@ -37,12 +37,13 @@ Golf Mk5 launcher development helper
 Usage:
   ./launcher.sh setup
   ./launcher.sh build
+  ./launcher.sh build-stable
   ./launcher.sh start [--headless]
   ./launcher.sh run
+  ./launcher.sh run-stable
   ./launcher.sh test
   ./launcher.sh install [ADB_SERIAL]
   ./launcher.sh launch [ADB_SERIAL]
-  ./launcher.sh build-stable
   ./launcher.sh install-stable [ADB_SERIAL]
   ./launcher.sh launch-stable [ADB_SERIAL]
   ./launcher.sh set-home-stable [ADB_SERIAL]
@@ -60,10 +61,11 @@ Commands:
   install  Install the dev APK. Defaults to emulator-5554. Passing an ADB
            serial is required to target a different device such as the car.
   launch   Launch the dev APK. Defaults to emulator-5554.
-  build-stable     Compile the stable HOME APK without installing it.
-  install-stable   Explicitly update/install the stable APK.
-  launch-stable    Launch the installed stable APK.
-  set-home-stable  Select the stable APK as Android's default HOME handler.
+  build-stable     Compile the stable-mode APK with R8 and resource shrinking.
+  run-stable       Build, install, and launch stable-mode R8 on the emulator.
+  install-stable   Build and install stable-mode R8; defaults to emulator-5554.
+  launch-stable    Launch stable-mode R8; defaults to emulator-5554.
+  set-home-stable  Select stable-mode R8 as Android's default HOME handler.
   dev      Start emulator, build, install, and launch in one command.
   stop     Stop only the emulator on port 5554.
   doctor   Check local requirements and print connected ADB devices.
@@ -264,7 +266,6 @@ start_emulator() {
     nohup "$GOLF_EMULATOR" \
         -avd "$GOLF_AVD_NAME" \
         -port 5554 \
-        -no-audio \
         -no-boot-anim \
         -no-snapshot \
         -memory 1536 \
@@ -285,11 +286,12 @@ build_app() {
 }
 
 build_stable_app() {
-    note "Building stable APK..."
-    gradle :app:assembleStableDebug
+    note "Building R8-minified stable-mode test APK..."
+    # API 30 is required by this device; skip only Play's expired-target lint check.
+    gradle :app:assembleStableOptimized -x lintVitalStableOptimized
     [[ -f "$GOLF_STABLE_APK" ]] ||
         die "Build completed without producing $GOLF_STABLE_APK"
-    note "Stable APK ready: $GOLF_STABLE_APK"
+    note "Stable-mode R8 test APK ready: $GOLF_STABLE_APK"
 }
 
 install_app() {
@@ -313,12 +315,11 @@ launch_app() {
 install_stable_app() {
     local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
     ensure_sdk
-    [[ -f "$GOLF_STABLE_APK" ]] ||
-        die "Stable APK not found. Run: ./launcher.sh build-stable"
+    build_stable_app
     [[ "$(adb_for "$golf_serial" get-state 2>/dev/null || true)" == "device" ]] ||
         die "ADB device is not available: $golf_serial"
 
-    note "Installing stable APK on $golf_serial..."
+    note "Installing stable-mode R8 APK on $golf_serial..."
     adb_for "$golf_serial" install -r "$GOLF_STABLE_APK"
 }
 
@@ -346,6 +347,12 @@ run_app() {
     build_app
     install_app "$GOLF_EMULATOR_SERIAL"
     launch_app "$GOLF_EMULATOR_SERIAL"
+}
+
+run_stable_app() {
+    start_emulator
+    install_stable_app "$GOLF_EMULATOR_SERIAL"
+    launch_stable_app "$GOLF_EMULATOR_SERIAL"
 }
 
 test_app() {
@@ -383,7 +390,7 @@ doctor() {
     printf 'SDK:      %s\n' "$([[ -x "$GOLF_SDKMANAGER" ]] && printf ready || printf missing)"
     printf 'Emulator: %s\n' "$([[ -x "$GOLF_EMULATOR" ]] && printf ready || printf missing)"
     printf 'Dev APK:  %s\n' "$([[ -f "$GOLF_DEV_APK" ]] && printf '%s' "$GOLF_DEV_APK" || printf 'not built')"
-    printf 'Stable:   %s\n' "$([[ -f "$GOLF_STABLE_APK" ]] && printf '%s' "$GOLF_STABLE_APK" || printf 'not built')"
+    printf 'Stable R8: %s\n' "$([[ -f "$GOLF_STABLE_APK" ]] && printf '%s' "$GOLF_STABLE_APK" || printf 'not built')"
     if [[ -x "$GOLF_EMULATOR" ]]; then
         "$GOLF_EMULATOR" -accel-check || true
     fi
@@ -412,6 +419,9 @@ main() {
             ;;
         run)
             run_app
+            ;;
+        run-stable)
+            run_stable_app
             ;;
         test)
             test_app

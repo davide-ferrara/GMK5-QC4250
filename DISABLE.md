@@ -12,7 +12,8 @@ read-only ADB dump (`pm list packages -u`, `-s`, `-3`, `-f`, `dumpsys package`).
 
 - Device: `Bengal for arm64`, Android 11 (SDK 30)
 - Total packages: **252** (244 system, 8 third-party)
-- Currently disabled: **`com.txznet.txz` only**
+- Currently disabled: **`com.txznet.txz`** and
+  **`com.acloud.stub.localmusic`**
 
 ## How to refresh the inventory
 
@@ -85,6 +86,7 @@ Also keep all core AOSP infrastructure (do not disable): `android`,
 | Name | Package | Status | Notes |
 |---|---|---|---|
 | Voice robot overlay | `com.txznet.txz` | Disabled for user 0 | The robot disappeared. Re-enable with `adb shell pm enable --user 0 com.txznet.txz`. |
+| OEM music / GalaMusic | `com.acloud.stub.localmusic` | Disabled for user 0 | MEDIA no longer launches the unwanted bundled music; verified by owner. The two tracks under `/system/media/insidefiles/` were left untouched. Re-enable with `adb shell pm enable --user 0 com.acloud.stub.localmusic`. |
 | PODOFO Voice | *to confirm* | Disabled by owner (not removed) | Exact package ID still to confirm on the device. |
 | PODOFO Plus | *to confirm* | Disabled by owner (not removed) | Exact package ID still to confirm on the device. |
 
@@ -116,7 +118,6 @@ real usage first:
 
 | Package | APK path | Why it is risky |
 |---|---|---|
-| `com.acloud.stub.localmusic` | GalaMusic | OEM music; may be the source selected by steering/media keys. |
 | `com.acloud.stub.extradio` | GalaRadio | OEM radio; may be bound to the Radio hardware/button. |
 | `com.acloud.stub.video` | GalaVideo | OEM video player. |
 | `com.acloud.xy.search` | GalaProvider | Vendor search/content provider. |

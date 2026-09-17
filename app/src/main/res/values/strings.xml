@@ -16,6 +16,9 @@
     <string name="author_name">Davide Ferrara</string>
     <string name="repository_label">Repository</string>
     <string name="repository_url">github.com/davide-ferrara/GMK5-QC4250</string>
+    <string name="accent_theme_label">Accent color</string>
+    <string name="accent_theme_volkswagen">Volkswagen blue</string>
+    <string name="accent_theme_red">Instrument red</string>
     <string name="open_repository">Open repository</string>
     <string name="check_updates">Check for updates</string>
     <string name="update_checking">Checking the latest GitHub release…</string>

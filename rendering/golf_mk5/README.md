@@ -8,6 +8,20 @@ animation.
 - `output/`: rendered images and video files.
 - `golf_mk5_preview.blend`: generated preview scene.
 
+## Launcher video
+
+The tracked lossless VP9 master is
+`source/golf_mk5_transparent_7s_lossless.webm`. The app embeds a smaller CRF 32
+copy at `app/src/main/assets/golf_mk5_transparent_7s_crf32.webm` (1024×600,
+30 fps, with alpha). Rebuild that copy from the repository root with:
+
+```sh
+ffmpeg -y -c:v libvpx-vp9 -i rendering/golf_mk5/source/golf_mk5_transparent_7s_lossless.webm \
+  -an -c:v libvpx-vp9 -pix_fmt yuva420p -lossless 0 -crf 32 -b:v 0 \
+  -auto-alt-ref 0 -row-mt 1 -deadline good -cpu-used 4 \
+  app/src/main/assets/golf_mk5_transparent_7s_crf32.webm
+```
+
 Run the first preview with:
 
 ```sh

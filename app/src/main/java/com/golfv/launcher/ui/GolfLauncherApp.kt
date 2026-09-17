@@ -14,7 +14,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -37,6 +41,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,6 +64,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -67,6 +73,7 @@ import com.golfv.launcher.BuildConfig
 import com.golfv.launcher.R
 import com.golfv.launcher.UpdateManager
 import com.golfv.launcher.UpdateResult
+import com.golfv.launcher.ui.theme.AccentTheme
 import com.golfv.launcher.ui.theme.GolfLauncherTheme
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -76,35 +83,69 @@ import kotlinx.coroutines.withContext
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
 
+private const val SPLASH_DURATION_MS = 2_000L
+private const val SPLASH_FADE_DURATION_MS = 450
+private const val SPLASH_AUDIO_DELAY_MS = 150L
+private const val PREFERENCES_NAME = "launcher_preferences"
+private const val ACCENT_THEME_KEY = "accent_theme"
+
 @Composable
-fun GolfLauncherApp() {
+fun GolfLauncherApp(onSplashFinished: () -> Unit = {}) {
+    val context = LocalContext.current.applicationContext
+    val preferences = remember(context) {
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
+    var accentTheme by remember(preferences) {
+        mutableStateOf(AccentTheme.fromPreference(preferences.getString(ACCENT_THEME_KEY, null)))
+    }
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
 
-    LaunchedEffect(Unit) {
-        delay(3_000)
-        if (screen == LauncherScreen.Splash) screen = LauncherScreen.Home
-    }
-
-    BackHandler(enabled = screen == LauncherScreen.Apps || screen == LauncherScreen.Info) {
-        screen = LauncherScreen.Home
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        HomeScreen(
-            onOpenApps = { screen = LauncherScreen.Apps },
-            onOpenInfo = { screen = LauncherScreen.Info },
-        )
-
-        if (screen == LauncherScreen.Splash) {
-            SplashScreen()
+    GolfLauncherTheme(accentTheme) {
+        LaunchedEffect(Unit) {
+            delay(SPLASH_DURATION_MS)
+            if (screen == LauncherScreen.Splash) {
+                screen = LauncherScreen.Home
+                // The audio HAL on the head unit can come up after the launcher UI.
+                // Keep the Home visible first, then start the short welcome cue.
+                delay(SPLASH_AUDIO_DELAY_MS)
+                onSplashFinished()
+            }
         }
 
-        if (screen == LauncherScreen.Info) {
-            ProjectInfoScreen(onClose = { screen = LauncherScreen.Home })
+        BackHandler(enabled = screen == LauncherScreen.Apps || screen == LauncherScreen.Info) {
+            screen = LauncherScreen.Home
         }
 
-        if (screen == LauncherScreen.Apps) {
-            AppDrawerScreen(onClose = { screen = LauncherScreen.Home })
+        Box(modifier = Modifier.fillMaxSize()) {
+            HomeScreen(
+                accentTheme = accentTheme,
+                onOpenApps = { screen = LauncherScreen.Apps },
+                onOpenInfo = { screen = LauncherScreen.Info },
+            )
+
+            AnimatedVisibility(
+                visible = screen == LauncherScreen.Splash,
+                exit = fadeOut(animationSpec = tween(SPLASH_FADE_DURATION_MS)),
+            ) {
+                SplashScreen()
+            }
+
+            if (screen == LauncherScreen.Info) {
+                ProjectInfoScreen(
+                    accentTheme = accentTheme,
+                    onAccentThemeChange = { selectedTheme ->
+                        accentTheme = selectedTheme
+                        preferences.edit()
+                            .putString(ACCENT_THEME_KEY, selectedTheme.preferenceValue)
+                            .apply()
+                    },
+                    onClose = { screen = LauncherScreen.Home },
+                )
+            }
+
+            if (screen == LauncherScreen.Apps) {
+                AppDrawerScreen(onClose = { screen = LauncherScreen.Home })
+            }
         }
     }
 }
@@ -127,13 +168,14 @@ private fun SplashScreen() {
 
 @Composable
 private fun HomeScreen(
+    accentTheme: AccentTheme,
     onOpenApps: () -> Unit,
     onOpenInfo: () -> Unit,
 ) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CarBackground()
+        CarBackground(accentTheme)
 
         Column(
             modifier = Modifier
@@ -179,11 +221,33 @@ private fun HomeScreen(
                 )
             }
         }
+
+        if (!BuildConfig.IS_STABLE) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(3f)
+                    .padding(top = 24.dp),
+                shape = CircleShape,
+                color = Color(0xD9140909),
+                shadowElevation = 8.dp,
+            ) {
+                Text(
+                    text = "DEV VERSION ${BuildConfig.VERSION_NAME}",
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    color = Color(0xFFFF3B30),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp,
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun CarBackground() {
+private fun CarBackground(accentTheme: AccentTheme) {
+    val accentColor = MaterialTheme.colorScheme.primary
     var videoFailed by remember { mutableStateOf(false) }
     var carWebView by remember { mutableStateOf<CarWebView?>(null) }
     val replayInteractionSource = remember { MutableInteractionSource() }
@@ -193,14 +257,18 @@ private fun CarBackground() {
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF17212D), Color(0xFF090D13)),
+                    colors = listOf(accentTheme.gradientStart, accentTheme.gradientEnd),
                 ),
             ),
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0x66316FA3), Color(0x2217314A), Color.Transparent),
+                    colors = listOf(
+                        accentColor.copy(alpha = 0.40f),
+                        accentColor.copy(alpha = 0.14f),
+                        Color.Transparent,
+                    ),
                     center = Offset(size.width * 0.54f, size.height * 0.52f),
                     radius = size.minDimension * 0.68f,
                 ),
@@ -285,7 +353,7 @@ private class CarWebView(
             }
         }
         loadDataWithBaseURL(
-            "file:///android_res/",
+            "file:///android_asset/",
             TRANSPARENT_CAR_PAGE,
             "text/html",
             "UTF-8",
@@ -312,13 +380,15 @@ private const val TRANSPARENT_CAR_PAGE = """
 <!doctype html>
 <html><head><meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>html,body{margin:0;width:1024px;height:600px;overflow:hidden;background:transparent}#car{display:none}canvas{position:absolute;left:0;top:0;width:1024px;height:600px}</style>
-</head><body><video id="car" autoplay muted playsinline preload="auto" src="raw/golf_mk5_transparent_7s.webm"></video><canvas id="stage" width="1024" height="600"></canvas>
+</head><body><video id="car" autoplay muted playsinline preload="auto" src="golf_mk5_transparent_7s_crf32.webm"></video><canvas id="stage" width="1024" height="600"></canvas>
 <script>
 const car=document.getElementById('car');
 const stage=document.getElementById('stage');
 const paint=stage.getContext('2d',{alpha:true});
 car.addEventListener('error',()=>CarVideoNative.onVideoError());
-function drawCarFrame(){if(car.readyState>=2){paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600)}requestAnimationFrame(drawCarFrame)}
+const frameInterval=1000/30;
+let lastPaint=0;
+function drawCarFrame(now){if(car.readyState>=2&&now-lastPaint>=frameInterval){lastPaint=now;paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600)}requestAnimationFrame(drawCarFrame)}
 requestAnimationFrame(drawCarFrame);
 car.play().catch(()=>CarVideoNative.onVideoError());
 window.replayCarVideo=()=>{car.pause();car.currentTime=0;car.play().catch(()=>CarVideoNative.onVideoError());};
@@ -355,7 +425,11 @@ private fun Dock(
 }
 
 @Composable
-private fun ProjectInfoScreen(onClose: () -> Unit) {
+private fun ProjectInfoScreen(
+    accentTheme: AccentTheme,
+    onAccentThemeChange: (AccentTheme) -> Unit,
+    onClose: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val updater = remember(context.applicationContext) { UpdateManager(context.applicationContext) }
@@ -402,11 +476,36 @@ private fun ProjectInfoScreen(onClose: () -> Unit) {
             InfoRow(stringResource(R.string.version_label), BuildConfig.VERSION_NAME)
             InfoRow(stringResource(R.string.author_label), stringResource(R.string.author_name))
             InfoRow(stringResource(R.string.repository_label), stringResource(R.string.repository_url))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.accent_theme_label),
+                color = Color(0xFF8D9AA7),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                AccentThemeChoice(
+                    theme = AccentTheme.VolkswagenBlue,
+                    selected = accentTheme == AccentTheme.VolkswagenBlue,
+                    onClick = { onAccentThemeChange(AccentTheme.VolkswagenBlue) },
+                    modifier = Modifier.weight(1f),
+                )
+                AccentThemeChoice(
+                    theme = AccentTheme.InstrumentRed,
+                    selected = accentTheme == AccentTheme.InstrumentRed,
+                    onClick = { onAccentThemeChange(AccentTheme.InstrumentRed) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             if (updateStatus != null) {
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = updateStatus.orEmpty(),
-                    color = Color(0xFF8DBDEB),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 17.sp,
                     lineHeight = 22.sp,
                 )
@@ -512,6 +611,43 @@ private fun ProjectInfoScreen(onClose: () -> Unit) {
 }
 
 @Composable
+private fun AccentThemeChoice(
+    theme: AccentTheme,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(60.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) theme.primary.copy(alpha = 0.16f) else Color(0xFF111820),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) theme.primary else Color(0xFF38434F),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .background(theme.primary, CircleShape),
+            )
+            Text(
+                text = stringResource(theme.labelRes),
+                color = if (selected) theme.highlight else Color.White,
+                fontSize = 18.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
+    }
+}
+
+@Composable
 private fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier
@@ -547,7 +683,7 @@ private fun DockButton(
 
     Surface(
         shape = CircleShape,
-        color = if (highlighted) Color(0xFF8FD3FF) else Color(0xFF236DA8),
+        color = if (highlighted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
         shadowElevation = if (highlighted) 14.dp else 2.dp,
     ) {
         IconButton(
@@ -558,7 +694,7 @@ private fun DockButton(
             Icon(
                 painter = painterResource(icon),
                 contentDescription = stringResource(label),
-                tint = if (highlighted) Color(0xFF06131F) else Color.White,
+                tint = if (highlighted) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(34.dp),
             )
         }
@@ -595,7 +731,5 @@ private fun unavailable(context: Context, message: String) {
 @Preview(widthDp = 1024, heightDp = 600, showBackground = true)
 @Composable
 private fun LauncherPreview() {
-    GolfLauncherTheme {
-        GolfLauncherApp()
-    }
+    GolfLauncherApp()
 }
