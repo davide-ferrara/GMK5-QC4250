@@ -42,6 +42,17 @@ re-enable with:
 adb shell pm enable --user 0 com.txznet.txz
 ```
 
+Two further apps reported disabled by the owner, whose exact package IDs are
+still to be confirmed on the device:
+
+| Name | Package | Status |
+|---|---|---|
+| PODOFO Voice | *to confirm* (`pm list packages | grep -i podofo`) | Disabled by owner. |
+| PODOFO Plus | *to confirm* | Disabled by owner. |
+
+The KEEP/DISABLE policy, blacklist of never-disable packages, candidate list,
+and reversible procedure are documented in [DISABLE.md](./DISABLE.md).
+
 ## Findings and constraints
 
 - Wireless ADB pairing and connection were verified on the local network.
