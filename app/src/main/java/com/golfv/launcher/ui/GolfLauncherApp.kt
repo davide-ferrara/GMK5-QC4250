@@ -3,11 +3,15 @@ package com.golfv.launcher.ui
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
+import android.net.Uri
 import android.provider.Settings
+import android.view.Surface
+import android.view.TextureView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +20,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,15 +37,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -45,29 +50,50 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.golfv.launcher.BuildConfig
 import com.golfv.launcher.R
 import com.golfv.launcher.ui.theme.GolfLauncherTheme
 import kotlinx.coroutines.delay
 
-private enum class LauncherScreen { Splash, Home, Apps }
+private enum class LauncherScreen { Splash, Home, Apps, Info }
 
 @Composable
 fun GolfLauncherApp() {
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
+    var animationFinished by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(900)
         if (screen == LauncherScreen.Splash) screen = LauncherScreen.Home
     }
 
-    BackHandler(enabled = screen == LauncherScreen.Apps) {
+    BackHandler(enabled = screen == LauncherScreen.Apps || screen == LauncherScreen.Info) {
         screen = LauncherScreen.Home
     }
 
-    when (screen) {
-        LauncherScreen.Splash -> SplashScreen()
-        LauncherScreen.Home -> HomeScreen(onOpenApps = { screen = LauncherScreen.Apps })
-        LauncherScreen.Apps -> AppDrawerPlaceholder(onClose = { screen = LauncherScreen.Home })
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (screen != LauncherScreen.Apps) {
+            HomeScreen(
+                playCarAnimation = !animationFinished,
+                onCarAnimationFinished = { animationFinished = true },
+                onOpenApps = {
+                    animationFinished = true
+                    screen = LauncherScreen.Apps
+                },
+                onOpenInfo = { screen = LauncherScreen.Info },
+            )
+        } else {
+            AppDrawerScreen(onClose = { screen = LauncherScreen.Home })
+        }
+
+        if (screen == LauncherScreen.Splash) {
+            SplashScreen()
+        }
+
+        if (screen == LauncherScreen.Info) {
+            ProjectInfoScreen(onClose = { screen = LauncherScreen.Home })
+        }
     }
 }
 
@@ -88,11 +114,19 @@ private fun SplashScreen() {
 }
 
 @Composable
-private fun HomeScreen(onOpenApps: () -> Unit) {
+private fun HomeScreen(
+    playCarAnimation: Boolean,
+    onCarAnimationFinished: () -> Unit,
+    onOpenApps: () -> Unit,
+    onOpenInfo: () -> Unit,
+) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PlaceholderCarBackground()
+        CarBackground(
+            playAnimation = playCarAnimation,
+            onAnimationFinished = onCarAnimationFinished,
+        )
 
         Column(
             modifier = Modifier
@@ -117,78 +151,100 @@ private fun HomeScreen(onOpenApps: () -> Unit) {
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(28.dp)
+                .size(56.dp),
+            shape = CircleShape,
+            color = Color(0xCC18212B),
+            shadowElevation = 8.dp,
+        ) {
+            IconButton(onClick = onOpenInfo) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_info),
+                    contentDescription = stringResource(R.string.project_info),
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun PlaceholderCarBackground() {
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF111820), Color(0xFF07090C)),
-                ),
-            ),
-    ) {
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color(0x332B88D8), Color.Transparent),
-                center = Offset(size.width * 0.58f, size.height * 0.48f),
-                radius = size.minDimension * 0.58f,
-            ),
-            radius = size.minDimension * 0.58f,
-            center = Offset(size.width * 0.58f, size.height * 0.48f),
+private fun CarBackground(
+    playAnimation: Boolean,
+    onAnimationFinished: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        Image(
+            painter = painterResource(R.drawable.golf_mk5_final),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize(),
         )
 
-        val left = size.width * 0.30f
-        val top = size.height * 0.40f
-        val carWidth = size.width * 0.49f
-        val carHeight = size.height * 0.25f
-        val body = Path().apply {
-            moveTo(left, top + carHeight * 0.72f)
-            lineTo(left + carWidth * 0.12f, top + carHeight * 0.30f)
-            quadraticTo(
-                left + carWidth * 0.28f,
-                top,
-                left + carWidth * 0.52f,
-                top + carHeight * 0.04f,
-            )
-            lineTo(left + carWidth * 0.80f, top + carHeight * 0.37f)
-            quadraticTo(
-                left + carWidth,
-                top + carHeight * 0.48f,
-                left + carWidth,
-                top + carHeight * 0.76f,
-            )
-            lineTo(left, top + carHeight * 0.76f)
-            close()
-        }
-        drawPath(
-            path = body,
-            brush = Brush.verticalGradient(
-                listOf(Color(0xFFB8C0CA), Color(0xFF4B535D)),
-                startY = top,
-                endY = top + carHeight,
-            ),
-        )
-        drawPath(body, Color(0x99EAF2FA), style = Stroke(width = 2.dp.toPx()))
-
-        val wheelRadius = carHeight * 0.19f
-        listOf(left + carWidth * 0.22f, left + carWidth * 0.80f).forEach { x ->
-            drawCircle(Color(0xFF090A0C), wheelRadius, Offset(x, top + carHeight * 0.77f))
-            drawCircle(
-                Color(0xFF78838E),
-                wheelRadius * 0.48f,
-                Offset(x, top + carHeight * 0.77f),
+        if (playAnimation) {
+            AndroidView(
+                factory = { context -> CarVideoView(context, onAnimationFinished) },
+                update = { it.onFinished = onAnimationFinished },
+                modifier = Modifier.fillMaxSize(),
+                onRelease = { it.release() },
             )
         }
+    }
+}
 
-        drawOval(
-            color = Color(0x55000000),
-            topLeft = Offset(left + carWidth * 0.02f, top + carHeight * 0.91f),
-            size = Size(carWidth * 0.96f, carHeight * 0.14f),
-        )
+private class CarVideoView(
+    context: Context,
+    var onFinished: () -> Unit,
+) : TextureView(context), TextureView.SurfaceTextureListener {
+    private var player: MediaPlayer? = null
+    private var videoSurface: Surface? = null
+
+    init {
+        surfaceTextureListener = this
+    }
+
+    override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
+        videoSurface = Surface(texture)
+        player = MediaPlayer().apply {
+            setDataSource(
+                context,
+                Uri.parse("android.resource://${context.packageName}/${R.raw.golf_mk5_black_7s}"),
+            )
+            setSurface(videoSurface)
+            isLooping = false
+            setOnPreparedListener { it.start() }
+            setOnCompletionListener { onFinished() }
+            setOnErrorListener { _, _, _ ->
+                onFinished()
+                true
+            }
+            prepareAsync()
+        }
+    }
+
+    override fun onSurfaceTextureSizeChanged(
+        texture: SurfaceTexture,
+        width: Int,
+        height: Int,
+    ) = Unit
+
+    override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
+
+    override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean {
+        release()
+        return true
+    }
+
+    fun release() {
+        player?.release()
+        player = null
+        videoSurface?.release()
+        videoSurface = null
     }
 }
 
@@ -212,60 +268,75 @@ private fun Dock(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DockButton(R.drawable.ic_android_auto, R.string.android_auto, true, onAndroidAuto)
-            DockButton(R.drawable.ic_radio, R.string.radio, true, onRadio)
-            DockButton(R.drawable.ic_tune, R.string.oem_settings, false, onOemSettings)
-            DockButton(R.drawable.ic_settings, R.string.android_settings, false, onAndroidSettings)
-            DockButton(R.drawable.ic_apps, R.string.app_drawer, true, onOpenApps)
+            DockButton(R.drawable.ic_android_auto, R.string.android_auto, onAndroidAuto)
+            DockButton(R.drawable.ic_radio, R.string.radio, onRadio)
+            DockButton(R.drawable.ic_car, R.string.oem_settings, onOemSettings)
+            DockButton(R.drawable.ic_settings, R.string.android_settings, onAndroidSettings)
+            DockButton(R.drawable.ic_apps, R.string.app_drawer, onOpenApps)
         }
     }
 }
 
 @Composable
-private fun DockButton(
-    @DrawableRes icon: Int,
-    label: Int,
-    prominent: Boolean,
-    onClick: () -> Unit,
-) {
-    val background = if (prominent) Color(0xFF236DA8) else Color(0xFF303A45)
-    Surface(shape = CircleShape, color = background) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(72.dp),
-        ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = stringResource(label),
-                tint = Color.White,
-                modifier = Modifier.size(34.dp),
-            )
-        }
-    }
-}
+private fun ProjectInfoScreen(onClose: () -> Unit) {
+    val context = LocalContext.current
 
-@Composable
-private fun AppDrawerPlaceholder(onClose: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF090C10))
-            .padding(36.dp),
+            .background(Color(0xF5090C10))
+            .padding(horizontal = 72.dp, vertical = 42.dp),
     ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp),
+        ) {
             Text(
-                text = stringResource(R.string.app_drawer),
+                text = stringResource(R.string.project_info),
                 color = Color.White,
                 fontSize = 36.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "The filtered application grid is planned for Phase 2.",
-                color = Color(0xFF9BA8B5),
+                text = stringResource(R.string.project_description),
+                color = Color(0xFFC2CAD3),
                 fontSize = 20.sp,
+                lineHeight = 28.sp,
             )
+            Spacer(modifier = Modifier.height(28.dp))
+            InfoRow(stringResource(R.string.version_label), BuildConfig.VERSION_NAME)
+            InfoRow(stringResource(R.string.author_label), stringResource(R.string.author_name))
+            InfoRow(stringResource(R.string.repository_label), stringResource(R.string.repository_url))
+            Spacer(modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        launchIntent(
+                            context,
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/davide-ferrara/GMK5-QC4250"),
+                            ),
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.open_repository))
+                }
+                Button(
+                    onClick = {
+                        unavailable(context, context.getString(R.string.update_mock_message))
+                    },
+                ) {
+                    Text(stringResource(R.string.check_updates))
+                }
+            }
         }
+
         IconButton(
             onClick = onClose,
             modifier = Modifier
@@ -282,6 +353,50 @@ private fun AppDrawerPlaceholder(onClose: () -> Unit) {
     }
 }
 
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = Color(0xFF8D9AA7),
+            fontSize = 18.sp,
+            modifier = Modifier.width(150.dp),
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun DockButton(
+    @DrawableRes icon: Int,
+    label: Int,
+    onClick: () -> Unit,
+) {
+    Surface(shape = CircleShape, color = Color(0xFF236DA8)) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(72.dp),
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = stringResource(label),
+                tint = Color.White,
+                modifier = Modifier.size(34.dp),
+            )
+        }
+    }
+}
+
 private fun launchPackage(context: Context, packageName: String) {
     val intent = context.packageManager.getLaunchIntentForPackage(packageName)
     if (intent == null) {
@@ -291,7 +406,7 @@ private fun launchPackage(context: Context, packageName: String) {
     }
 }
 
-private fun launchIntent(context: Context, intent: Intent) {
+internal fun launchIntent(context: Context, intent: Intent) {
     val activity = intent.resolveActivity(context.packageManager)
     if (activity == null) {
         unavailable(context, "Application not available")

@@ -6,5 +6,16 @@
     <string name="oem_settings">OEM settings</string>
     <string name="android_settings">Android settings</string>
     <string name="app_drawer">Applications</string>
+    <string name="no_apps">No applications available</string>
     <string name="close">Close</string>
+    <string name="project_info">Project information</string>
+    <string name="project_description">A vehicle-specific launcher for the QC4250 Android head unit installed in a Volkswagen Golf Mk5.</string>
+    <string name="version_label">Version</string>
+    <string name="author_label">Author</string>
+    <string name="author_name">Davide Ferrara</string>
+    <string name="repository_label">Repository</string>
+    <string name="repository_url">github.com/davide-ferrara/GMK5-QC4250</string>
+    <string name="open_repository">Open repository</string>
+    <string name="check_updates">Check for updates</string>
+    <string name="update_mock_message">Update checking is not connected yet</string>
 </resources>
