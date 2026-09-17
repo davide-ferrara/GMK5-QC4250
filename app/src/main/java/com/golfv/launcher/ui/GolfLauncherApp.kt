@@ -3,6 +3,9 @@ package com.golfv.launcher.ui
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
 import android.net.Uri
@@ -14,6 +17,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix as ComposeColorMatrix
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -178,13 +185,26 @@ private fun CarBackground(
     playAnimation: Boolean,
     onAnimationFinished: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        Image(
-            painter = painterResource(R.drawable.golf_mk5_final),
-            contentDescription = null,
-            contentScale = ContentScale.FillBounds,
-            modifier = Modifier.fillMaxSize(),
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF17212D), Color(0xFF090D13)),
+                ),
+            ),
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0x55316FA3), Color(0x1A17314A), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * 0.54f, size.height * 0.52f),
+                    radius = size.minDimension * 0.68f,
+                ),
+                radius = size.minDimension * 0.68f,
+                center = androidx.compose.ui.geometry.Offset(size.width * 0.54f, size.height * 0.52f),
+            )
+        }
 
         if (playAnimation) {
             AndroidView(
@@ -193,9 +213,26 @@ private fun CarBackground(
                 modifier = Modifier.fillMaxSize(),
                 onRelease = { it.release() },
             )
+        } else {
+            Image(
+                painter = painterResource(R.drawable.golf_mk5_final),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                colorFilter = ColorFilter.colorMatrix(
+                    ComposeColorMatrix(BLACK_KEY_COLOR_MATRIX),
+                ),
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
+
+private val BLACK_KEY_COLOR_MATRIX = floatArrayOf(
+    1f, 0f, 0f, 0f, 0f,
+    0f, 1f, 0f, 0f, 0f,
+    0f, 0f, 1f, 0f, 0f,
+    1.43f, 4.79f, 0.48f, 0f, -80f,
+)
 
 private class CarVideoView(
     context: Context,
@@ -206,6 +243,12 @@ private class CarVideoView(
 
     init {
         surfaceTextureListener = this
+        isOpaque = false
+        setLayerPaint(
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                colorFilter = ColorMatrixColorFilter(ColorMatrix(BLACK_KEY_COLOR_MATRIX))
+            },
+        )
     }
 
     override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {

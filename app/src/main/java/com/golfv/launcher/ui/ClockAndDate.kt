@@ -65,7 +65,7 @@ internal fun ClockAndDate() {
             color = Color.White,
             fontSize = 92.sp,
             lineHeight = 92.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Light,
         )
         Text(
             text = dateText,
