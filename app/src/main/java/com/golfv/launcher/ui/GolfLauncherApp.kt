@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.view.MotionEvent
 import android.view.View
 import android.provider.Settings
 import android.widget.Toast
@@ -12,10 +11,16 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
@@ -39,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,10 +62,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import com.golfv.launcher.BuildConfig
 import com.golfv.launcher.R
+import com.golfv.launcher.UpdateManager
+import com.golfv.launcher.UpdateResult
 import com.golfv.launcher.ui.theme.GolfLauncherTheme
+import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
 
@@ -66,7 +81,7 @@ fun GolfLauncherApp() {
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
 
     LaunchedEffect(Unit) {
-        delay(900)
+        delay(3_000)
         if (screen == LauncherScreen.Splash) screen = LauncherScreen.Home
     }
 
@@ -123,13 +138,14 @@ private fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .zIndex(2f)
                 .padding(horizontal = 48.dp, vertical = 32.dp),
         ) {
             ClockAndDate()
             Spacer(modifier = Modifier.weight(1f))
             Dock(
                 onAndroidAuto = { launchPackage(context, "com.zjinnova.zlink") },
-                onRadio = { unavailable(context, "Radio target not configured") },
+                onRadio = { launchPackage(context, "com.acloud.stub.extradio") },
                 onOemSettings = {
                     launchIntent(
                         context,
@@ -147,6 +163,7 @@ private fun HomeScreen(
         Surface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .zIndex(3f)
                 .padding(28.dp)
                 .size(56.dp),
             shape = CircleShape,
@@ -168,6 +185,8 @@ private fun HomeScreen(
 @Composable
 private fun CarBackground() {
     var videoFailed by remember { mutableStateOf(false) }
+    var carWebView by remember { mutableStateOf<CarWebView?>(null) }
+    val replayInteractionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
@@ -192,10 +211,15 @@ private fun CarBackground() {
 
         AndroidView(
             factory = { context ->
-                CarWebView(context, onFailed = { videoFailed = true })
+                CarWebView(context, onFailed = { videoFailed = true }).also {
+                    carWebView = it
+                }
             },
             modifier = Modifier.fillMaxSize(),
-            onRelease = { it.release() },
+            onRelease = {
+                if (carWebView === it) carWebView = null
+                it.release()
+            },
         )
 
         if (videoFailed) {
@@ -206,6 +230,21 @@ private fun CarBackground() {
                 modifier = Modifier.fillMaxSize(),
             )
         }
+
+        // Keep the video view passive so it cannot steal touches from the dock.
+        // This dedicated hit area preserves the tap-the-car replay easter egg.
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(y = (-5).dp)
+                .size(width = 500.dp, height = 220.dp)
+                .testTag("carReplayArea")
+                .clickable(
+                    interactionSource = replayInteractionSource,
+                    indication = null,
+                    onClick = { carWebView?.replay() },
+                ),
+        )
     }
 }
 
@@ -213,12 +252,12 @@ private class CarWebView(
     context: Context,
     onFailed: () -> Unit,
 ) : WebView(context) {
-    private var touchDownX = 0f
-    private var touchDownY = 0f
-    private val touchSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop.toFloat()
-
     init {
         setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        isClickable = false
+        isLongClickable = false
+        isFocusable = false
+        isFocusableInTouchMode = false
         isVerticalScrollBarEnabled = false
         isHorizontalScrollBarEnabled = false
         overScrollMode = View.OVER_SCROLL_NEVER
@@ -254,28 +293,12 @@ private class CarWebView(
         )
     }
 
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean = false
+
+    override fun onTouchEvent(event: android.view.MotionEvent): Boolean = false
+
     fun replay() {
         evaluateJavascript("window.replayCarVideo && window.replayCarVideo()", null)
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                touchDownX = event.x
-                touchDownY = event.y
-                return true
-            }
-            MotionEvent.ACTION_UP -> {
-                val dx = event.x - touchDownX
-                val dy = event.y - touchDownY
-                if (dx * dx + dy * dy < touchSlop * touchSlop) {
-                    replay()
-                }
-                return true
-            }
-            MotionEvent.ACTION_CANCEL -> return true
-        }
-        return true
     }
 
     fun release() {
@@ -334,6 +357,22 @@ private fun Dock(
 @Composable
 private fun ProjectInfoScreen(onClose: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val updater = remember(context.applicationContext) { UpdateManager(context.applicationContext) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
+    var updateInProgress by remember { mutableStateOf(false) }
+    var downloadedApk by remember { mutableStateOf<File?>(null) }
+    val installPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        val apk = downloadedApk
+        if (apk != null && updater.canInstallPackages() && updater.install(apk)) {
+            updateStatus = context.getString(R.string.update_preparing)
+        } else {
+            updateStatus = context.getString(R.string.update_permission_denied)
+        }
+        updateInProgress = false
+    }
 
     Box(
         modifier = Modifier
@@ -363,6 +402,15 @@ private fun ProjectInfoScreen(onClose: () -> Unit) {
             InfoRow(stringResource(R.string.version_label), BuildConfig.VERSION_NAME)
             InfoRow(stringResource(R.string.author_label), stringResource(R.string.author_name))
             InfoRow(stringResource(R.string.repository_label), stringResource(R.string.repository_url))
+            if (updateStatus != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = updateStatus.orEmpty(),
+                    color = Color(0xFF8DBDEB),
+                    fontSize = 17.sp,
+                    lineHeight = 22.sp,
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -382,8 +430,62 @@ private fun ProjectInfoScreen(onClose: () -> Unit) {
                     Text(stringResource(R.string.open_repository))
                 }
                 Button(
+                    enabled = !updateInProgress,
                     onClick = {
-                        unavailable(context, context.getString(R.string.update_mock_message))
+                        updateInProgress = true
+                        updateStatus = context.getString(R.string.update_checking)
+                        scope.launch {
+                            when (val result = updater.downloadLatest { version, percent ->
+                                withContext(Dispatchers.Main.immediate) {
+                                    updateStatus = context.getString(
+                                        R.string.update_downloading,
+                                        version,
+                                        percent,
+                                    )
+                                }
+                            }) {
+                                is UpdateResult.Current -> {
+                                    updateStatus = context.getString(
+                                        R.string.update_current,
+                                        result.version,
+                                    )
+                                    updateInProgress = false
+                                }
+                                is UpdateResult.Downloaded -> {
+                                    downloadedApk = result.apk
+                                    updateStatus = context.getString(R.string.update_preparing)
+                                    if (updater.canInstallPackages()) {
+                                        if (!updater.install(result.apk)) {
+                                            updateStatus = context.getString(R.string.update_failed)
+                                        }
+                                        updateInProgress = false
+                                    } else {
+                                        runCatching {
+                                            installPermissionLauncher.launch(
+                                                updater.installPermissionIntent(),
+                                            )
+                                        }.onFailure {
+                                            updateStatus = context.getString(
+                                                R.string.update_permission_denied,
+                                            )
+                                            updateInProgress = false
+                                        }
+                                    }
+                                }
+                                UpdateResult.NoRelease -> {
+                                    updateStatus = context.getString(R.string.update_no_release)
+                                    updateInProgress = false
+                                }
+                                UpdateResult.InvalidApk -> {
+                                    updateStatus = context.getString(R.string.update_invalid_apk)
+                                    updateInProgress = false
+                                }
+                                UpdateResult.Failed -> {
+                                    updateStatus = context.getString(R.string.update_failed)
+                                    updateInProgress = false
+                                }
+                            }
+                        }
                     },
                 ) {
                     Text(stringResource(R.string.check_updates))
@@ -436,15 +538,25 @@ private fun DockButton(
     label: Int,
     onClick: () -> Unit,
 ) {
-    Surface(shape = CircleShape, color = Color(0xFF236DA8)) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val highlighted = pressed || focused
+
+    Surface(
+        shape = CircleShape,
+        color = if (highlighted) Color(0xFF8FD3FF) else Color(0xFF236DA8),
+        shadowElevation = if (highlighted) 14.dp else 2.dp,
+    ) {
         IconButton(
             onClick = onClick,
+            interactionSource = interactionSource,
             modifier = Modifier.size(72.dp),
         ) {
             Icon(
                 painter = painterResource(icon),
                 contentDescription = stringResource(label),
-                tint = Color.White,
+                tint = if (highlighted) Color(0xFF06131F) else Color.White,
                 modifier = Modifier.size(34.dp),
             )
         }

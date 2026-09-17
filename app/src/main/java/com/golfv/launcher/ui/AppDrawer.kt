@@ -84,6 +84,7 @@ internal fun AppDrawerScreen(onClose: () -> Unit) {
             color = Color.White,
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 72.dp),
         )
 
         when (val loadedApps = apps) {
@@ -130,12 +131,12 @@ internal fun AppDrawerScreen(onClose: () -> Unit) {
         IconButton(
             onClick = onClose,
             modifier = Modifier
-                .align(Alignment.TopEnd)
+                .align(Alignment.TopStart)
                 .size(56.dp),
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_close),
-                contentDescription = stringResource(R.string.close),
+                painter = painterResource(R.drawable.ic_arrow_back),
+                contentDescription = stringResource(R.string.back),
                 tint = Color.White,
                 modifier = Modifier.size(30.dp),
             )

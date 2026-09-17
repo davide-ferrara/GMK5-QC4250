@@ -3,7 +3,9 @@ package com.golfv.launcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import org.junit.Rule
 import org.junit.Test
 
@@ -13,14 +15,31 @@ class LauncherUiTest {
 
     @Test
     fun dockShowsFiveActionsAndOpensDrawer() {
-        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.mainClock.advanceTimeBy(3_100)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithContentDescription("Android Auto").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Radio").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("OEM settings").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Android settings").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Applications").performClick()
-        composeRule.onNodeWithContentDescription("Close").assertIsDisplayed()
+        with(composeRule.activity) {
+            composeRule.onNodeWithContentDescription(getString(R.string.android_auto)).assertIsDisplayed()
+            composeRule.onNodeWithContentDescription(getString(R.string.radio)).assertIsDisplayed()
+            composeRule.onNodeWithContentDescription(getString(R.string.oem_settings)).assertIsDisplayed()
+            composeRule.onNodeWithContentDescription(getString(R.string.android_settings)).assertIsDisplayed()
+            composeRule.onNodeWithContentDescription(getString(R.string.app_drawer))
+                .performTouchInput { click() }
+            composeRule.onNodeWithContentDescription(getString(R.string.back)).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun tappingCarKeepsDockTouchable() {
+        composeRule.mainClock.advanceTimeBy(3_100)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("carReplayArea").performTouchInput { click() }
+        composeRule.onNodeWithContentDescription(
+            composeRule.activity.getString(R.string.app_drawer),
+        ).performTouchInput { click() }
+        composeRule.onNodeWithContentDescription(
+            composeRule.activity.getString(R.string.back),
+        ).assertIsDisplayed()
     }
 }

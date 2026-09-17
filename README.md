@@ -80,3 +80,21 @@ HOME application and does not disable either OEM launcher.
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for setup details and local generated
 directories.
+
+### Publishing an in-app update
+
+The information page checks the repository's latest GitHub Release, downloads
+its first `.apk` asset, verifies its GitHub SHA-256 digest, package name,
+increasing `versionCode`, and signing certificate, then opens Android's package
+installer. To publish an update:
+
+1. increase both `versionCode` and `versionName` in `app/build.gradle.kts`;
+2. build an APK signed with the same key as the APK already on the head unit;
+3. create a non-draft, non-prerelease GitHub Release tagged with the same
+   version (for example `v0.2.3`) and attach the APK.
+
+If GitHub does not expose a digest for the asset, also attach a text file named
+`<apk-name>.sha256` containing its SHA-256 value. Android requires a one-time
+“Install unknown apps” authorization and always shows its own final install
+confirmation. An APK signed with another key is rejected by the launcher and
+cannot update the installed application.

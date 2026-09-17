@@ -44,6 +44,17 @@ bus e applicazioni OEM.
   scende, titolo che appare e icone che entrano con pochi millisecondi di
   ritardo progressivo.
 
+## Suono di benvenuto
+
+- Creare un chime originale e sobrio di circa 0,5–1,5 secondi, più adatto di
+  una musica completa all'avvio di un'auto moderna.
+- Riprodurlo una sola volta per avvio del launcher o ciclo ACC, con
+  un'impostazione visibile per disattivarlo.
+- Non interrompere radio, navigazione o Android Auto: verificare lo stato
+  dell'audio e richiedere il focus solo se il comportamento OEM lo consente.
+- Provare volume, equalizzazione e tempi sul QC4250 reale; in caso di audio già
+  attivo o avvio durante la retromarcia, non riprodurre alcun suono.
+
 ## App drawer
 
 - Aggiungere cartelle opzionali come Media, Navigazione e Strumenti.
@@ -62,6 +73,15 @@ bus e applicazioni OEM.
   e verificata sul dispositivo.
 - Valutare widget di sola lettura per temperatura esterna, porte aperte e stato
   luci, usando esclusivamente API già esposte dai componenti OEM.
+- Esplorare il CAN bus inizialmente in sola lettura: censire broadcast, service,
+  provider e interfacce Binder esposti da `com.kyhero.car.myhost`,
+  `com.kyhero.car.myhost2` e dagli adapter vendor, senza inviare comandi.
+- Registrare e correlare pochi segnali innocui e verificabili — porte, luci,
+  temperatura esterna, retromarcia e quadro acceso — prima di mostrare dati nel
+  launcher; documentare sorgente, formato, frequenza e comportamento in caso di
+  dato assente.
+- Tenere ogni lettura CAN separata dalla UI principale e disattivabile, così un
+  errore o un cambio del firmware OEM non può compromettere il launcher.
 - Sospendere animazioni e interazioni non necessarie durante la retromarcia,
   lasciando piena priorità alla finestra della retrocamera.
 - Verificare una modalità semplificata in movimento con bersagli tattili più

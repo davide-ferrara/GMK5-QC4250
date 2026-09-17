@@ -8,6 +8,7 @@
     <string name="app_drawer">Applications</string>
     <string name="no_apps">No applications available</string>
     <string name="close">Close</string>
+    <string name="back">Back</string>
     <string name="project_info">Project information</string>
     <string name="project_description">A vehicle-specific launcher for the QC4250 Android head unit installed in a Volkswagen Golf Mk5.</string>
     <string name="version_label">Version</string>
@@ -17,5 +18,12 @@
     <string name="repository_url">github.com/davide-ferrara/GMK5-QC4250</string>
     <string name="open_repository">Open repository</string>
     <string name="check_updates">Check for updates</string>
-    <string name="update_mock_message">Update checking is not connected yet</string>
+    <string name="update_checking">Checking the latest GitHub release…</string>
+    <string name="update_downloading">Downloading %1$s: %2$d%%</string>
+    <string name="update_preparing">Preparing the installer…</string>
+    <string name="update_current">Version %1$s is already up to date.</string>
+    <string name="update_no_release">No GitHub release has been published yet.</string>
+    <string name="update_permission_denied">Allow this app to install updates, then try again.</string>
+    <string name="update_invalid_apk">The release APK failed its security checks.</string>
+    <string name="update_failed">Unable to update. Check the internet connection and the GitHub release.</string>
 </resources>
