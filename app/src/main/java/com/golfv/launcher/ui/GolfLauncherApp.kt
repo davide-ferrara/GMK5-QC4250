@@ -3,16 +3,14 @@ package com.golfv.launcher.ui
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
-import android.graphics.SurfaceTexture
-import android.media.MediaPlayer
 import android.net.Uri
+import android.view.MotionEvent
+import android.view.View
 import android.provider.Settings
-import android.view.Surface
-import android.view.TextureView
 import android.widget.Toast
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
@@ -41,14 +39,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix as ComposeColorMatrix
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -68,7 +64,6 @@ private enum class LauncherScreen { Splash, Home, Apps, Info }
 @Composable
 fun GolfLauncherApp() {
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
-    var animationFinished by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(900)
@@ -80,19 +75,10 @@ fun GolfLauncherApp() {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (screen != LauncherScreen.Apps) {
-            HomeScreen(
-                playCarAnimation = !animationFinished,
-                onCarAnimationFinished = { animationFinished = true },
-                onOpenApps = {
-                    animationFinished = true
-                    screen = LauncherScreen.Apps
-                },
-                onOpenInfo = { screen = LauncherScreen.Info },
-            )
-        } else {
-            AppDrawerScreen(onClose = { screen = LauncherScreen.Home })
-        }
+        HomeScreen(
+            onOpenApps = { screen = LauncherScreen.Apps },
+            onOpenInfo = { screen = LauncherScreen.Info },
+        )
 
         if (screen == LauncherScreen.Splash) {
             SplashScreen()
@@ -100,6 +86,10 @@ fun GolfLauncherApp() {
 
         if (screen == LauncherScreen.Info) {
             ProjectInfoScreen(onClose = { screen = LauncherScreen.Home })
+        }
+
+        if (screen == LauncherScreen.Apps) {
+            AppDrawerScreen(onClose = { screen = LauncherScreen.Home })
         }
     }
 }
@@ -122,18 +112,13 @@ private fun SplashScreen() {
 
 @Composable
 private fun HomeScreen(
-    playCarAnimation: Boolean,
-    onCarAnimationFinished: () -> Unit,
     onOpenApps: () -> Unit,
     onOpenInfo: () -> Unit,
 ) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CarBackground(
-            playAnimation = playCarAnimation,
-            onAnimationFinished = onCarAnimationFinished,
-        )
+        CarBackground()
 
         Column(
             modifier = Modifier
@@ -181,10 +166,9 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun CarBackground(
-    playAnimation: Boolean,
-    onAnimationFinished: () -> Unit,
-) {
+private fun CarBackground() {
+    var videoFailed by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -197,99 +181,126 @@ private fun CarBackground(
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0x55316FA3), Color(0x1A17314A), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * 0.54f, size.height * 0.52f),
+                    colors = listOf(Color(0x66316FA3), Color(0x2217314A), Color.Transparent),
+                    center = Offset(size.width * 0.54f, size.height * 0.52f),
                     radius = size.minDimension * 0.68f,
                 ),
                 radius = size.minDimension * 0.68f,
-                center = androidx.compose.ui.geometry.Offset(size.width * 0.54f, size.height * 0.52f),
+                center = Offset(size.width * 0.54f, size.height * 0.52f),
             )
         }
 
-        if (playAnimation) {
-            AndroidView(
-                factory = { context -> CarVideoView(context, onAnimationFinished) },
-                update = { it.onFinished = onAnimationFinished },
-                modifier = Modifier.fillMaxSize(),
-                onRelease = { it.release() },
-            )
-        } else {
+        AndroidView(
+            factory = { context ->
+                CarWebView(context, onFailed = { videoFailed = true })
+            },
+            modifier = Modifier.fillMaxSize(),
+            onRelease = { it.release() },
+        )
+
+        if (videoFailed) {
             Image(
                 painter = painterResource(R.drawable.golf_mk5_final),
                 contentDescription = null,
                 contentScale = ContentScale.FillBounds,
-                colorFilter = ColorFilter.colorMatrix(
-                    ComposeColorMatrix(BLACK_KEY_COLOR_MATRIX),
-                ),
                 modifier = Modifier.fillMaxSize(),
             )
         }
     }
 }
 
-private val BLACK_KEY_COLOR_MATRIX = floatArrayOf(
-    1f, 0f, 0f, 0f, 0f,
-    0f, 1f, 0f, 0f, 0f,
-    0f, 0f, 1f, 0f, 0f,
-    1.43f, 4.79f, 0.48f, 0f, -80f,
-)
-
-private class CarVideoView(
+private class CarWebView(
     context: Context,
-    var onFinished: () -> Unit,
-) : TextureView(context), TextureView.SurfaceTextureListener {
-    private var player: MediaPlayer? = null
-    private var videoSurface: Surface? = null
+    onFailed: () -> Unit,
+) : WebView(context) {
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private val touchSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop.toFloat()
 
     init {
-        surfaceTextureListener = this
-        isOpaque = false
-        setLayerPaint(
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                colorFilter = ColorMatrixColorFilter(ColorMatrix(BLACK_KEY_COLOR_MATRIX))
+        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        isVerticalScrollBarEnabled = false
+        isHorizontalScrollBarEnabled = false
+        overScrollMode = View.OVER_SCROLL_NEVER
+        settings.javaScriptEnabled = true
+        settings.mediaPlaybackRequiresUserGesture = false
+        settings.allowFileAccess = true
+        settings.allowFileAccessFromFileURLs = true
+        addJavascriptInterface(
+            object {
+                @JavascriptInterface
+                fun onVideoError() {
+                    post { onFailed() }
+                }
+
             },
+            "CarVideoNative",
+        )
+        webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: WebView,
+                request: android.webkit.WebResourceRequest,
+                error: android.webkit.WebResourceError,
+            ) {
+                if (request.isForMainFrame) onFailed()
+            }
+        }
+        loadDataWithBaseURL(
+            "file:///android_res/",
+            TRANSPARENT_CAR_PAGE,
+            "text/html",
+            "UTF-8",
+            null,
         )
     }
 
-    override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-        videoSurface = Surface(texture)
-        player = MediaPlayer().apply {
-            setDataSource(
-                context,
-                Uri.parse("android.resource://${context.packageName}/${R.raw.golf_mk5_black_7s}"),
-            )
-            setSurface(videoSurface)
-            isLooping = false
-            setOnPreparedListener { it.start() }
-            setOnCompletionListener { onFinished() }
-            setOnErrorListener { _, _, _ ->
-                onFinished()
-                true
-            }
-            prepareAsync()
-        }
+    fun replay() {
+        evaluateJavascript("window.replayCarVideo && window.replayCarVideo()", null)
     }
 
-    override fun onSurfaceTextureSizeChanged(
-        texture: SurfaceTexture,
-        width: Int,
-        height: Int,
-    ) = Unit
-
-    override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
-
-    override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean {
-        release()
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                touchDownX = event.x
+                touchDownY = event.y
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                val dx = event.x - touchDownX
+                val dy = event.y - touchDownY
+                if (dx * dx + dy * dy < touchSlop * touchSlop) {
+                    replay()
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> return true
+        }
         return true
     }
 
     fun release() {
-        player?.release()
-        player = null
-        videoSurface?.release()
-        videoSurface = null
+        stopLoading()
+        removeJavascriptInterface("CarVideoNative")
+        destroy()
     }
 }
+
+private const val TRANSPARENT_CAR_PAGE = """
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>html,body{margin:0;width:1024px;height:600px;overflow:hidden;background:transparent}#car{display:none}canvas{position:absolute;left:0;top:0;width:1024px;height:600px}</style>
+</head><body><video id="car" autoplay muted playsinline preload="auto" src="raw/golf_mk5_transparent_7s.webm"></video><canvas id="stage" width="1024" height="600"></canvas>
+<script>
+const car=document.getElementById('car');
+const stage=document.getElementById('stage');
+const paint=stage.getContext('2d',{alpha:true});
+car.addEventListener('error',()=>CarVideoNative.onVideoError());
+function drawCarFrame(){if(car.readyState>=2){paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600)}requestAnimationFrame(drawCarFrame)}
+requestAnimationFrame(drawCarFrame);
+car.play().catch(()=>CarVideoNative.onVideoError());
+window.replayCarVideo=()=>{car.pause();car.currentTime=0;car.play().catch(()=>CarVideoNative.onVideoError());};
+</script></body></html>
+"""
 
 @Composable
 private fun Dock(
