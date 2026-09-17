@@ -2,6 +2,8 @@
 
 Reverse-engineering notes for the Android head unit in a Volkswagen Golf Mk5.
 
+![Golf Mk5 launcher running in the dev emulator](./screenshots/launcher-dev-emulator.png)
+
 ## Passwords
 
 - Factory Settings: `8888`
@@ -114,10 +116,6 @@ safe to install beside the stable launcher. The generated APK is located at:
 ```text
 app/build/outputs/apk/dev/debug/app-dev-debug.apk
 ```
-
-The dev build running in the Android 11 emulator:
-
-![Golf Mk5 launcher running in the dev emulator](./screenshots/launcher-dev-emulator.png)
 
 The stable package remains `com.golfv.launcher`. Updating it always requires
 the explicit `make build-stable` and `make install-stable` commands. Select the
