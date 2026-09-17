@@ -3,9 +3,10 @@ package com.golfv.launcher
 import android.animation.ValueAnimator
 import android.content.Intent
 import android.media.AudioAttributes
-import android.media.AudioManager
-import android.media.MediaPlayer
+import android.media.SoundPool
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
@@ -15,13 +16,19 @@ import com.golfv.launcher.ui.GolfLauncherApp
 import com.golfv.launcher.ui.theme.GolfLauncherTheme
 
 class MainActivity : ComponentActivity() {
-    private var welcomePlayer: MediaPlayer? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var welcomeSoundPool: SoundPool? = null
+    private var welcomeSoundId = 0
+    private var welcomeSoundLoaded = false
+    private var pendingWelcomePlayback = false
+    private var welcomeStreamId = 0
     private var welcomeFadeAnimator: ValueAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
+        initializeWelcomeSound()
 
         setContent {
             GolfLauncherTheme {
@@ -45,74 +52,85 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         stopWelcomeSound()
+        welcomeSoundPool?.release()
+        welcomeSoundPool = null
         super.onDestroy()
     }
 
-    private fun playWelcomeSound() {
-        stopWelcomeSound()
-
+    private fun initializeWelcomeSound() {
         val attributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        val player = runCatching {
-            MediaPlayer.create(
-                this,
-                R.raw.welcome_sound,
-                attributes,
-                AudioManager.AUDIO_SESSION_ID_GENERATE,
-            )
-        }.getOrNull() ?: return
-
-        welcomePlayer = player
-        player.setVolume(0f, 0f)
-        player.setOnCompletionListener {
-            if (welcomePlayer === it) {
-                welcomeFadeAnimator?.cancel()
-                welcomeFadeAnimator = null
-                welcomePlayer = null
+        val pool = SoundPool.Builder()
+            .setMaxStreams(1)
+            .setAudioAttributes(attributes)
+            .build()
+        welcomeSoundPool = pool
+        pool.setOnLoadCompleteListener { loadedPool, _, status ->
+            mainHandler.post {
+                if (welcomeSoundPool !== loadedPool) return@post
+                welcomeSoundLoaded = status == 0
+                if (welcomeSoundLoaded && pendingWelcomePlayback) {
+                    pendingWelcomePlayback = false
+                    playWelcomeSoundNow()
+                }
             }
-            it.release()
         }
-        runCatching { player.start() }
-            .onSuccess { startWelcomeFade(player) }
-            .onFailure {
-                player.release()
-                if (welcomePlayer === player) welcomePlayer = null
-            }
+        welcomeSoundId = pool.load(this, R.raw.welcome_sound, 1)
     }
 
-    private fun startWelcomeFade(player: MediaPlayer) {
-        val durationMs = player.duration.toLong()
-        if (durationMs <= 0L) {
-            player.setVolume(WELCOME_VOLUME, WELCOME_VOLUME)
+    private fun playWelcomeSound() {
+        stopWelcomeSound()
+        if (!welcomeSoundLoaded) {
+            pendingWelcomePlayback = true
             return
         }
+        playWelcomeSoundNow()
+    }
+
+    private fun playWelcomeSoundNow() {
+        val pool = welcomeSoundPool ?: return
+        if (!welcomeSoundLoaded || welcomeSoundId == 0) return
+
+        val streamId = pool.play(welcomeSoundId, 0f, 0f, 1, 0, 1f)
+        if (streamId == 0) return
+        welcomeStreamId = streamId
 
         welcomeFadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = durationMs
+            duration = WELCOME_SOUND_DURATION_MS
             addUpdateListener { animator ->
-                if (welcomePlayer !== player) return@addUpdateListener
+                if (welcomeStreamId != streamId) return@addUpdateListener
 
-                val elapsedMs = (durationMs * animator.animatedFraction).toLong()
+                val elapsedMs = (WELCOME_SOUND_DURATION_MS * animator.animatedFraction).toLong()
                 val gain = when {
                     elapsedMs < WELCOME_FADE_IN_MS ->
                         elapsedMs.toFloat() / WELCOME_FADE_IN_MS
-                    elapsedMs > durationMs - WELCOME_FADE_OUT_MS ->
-                        (durationMs - elapsedMs).toFloat() / WELCOME_FADE_OUT_MS
+                    elapsedMs > WELCOME_SOUND_DURATION_MS - WELCOME_FADE_OUT_MS ->
+                        (WELCOME_SOUND_DURATION_MS - elapsedMs).toFloat() / WELCOME_FADE_OUT_MS
                     else -> 1f
                 }.coerceIn(0f, 1f)
-                player.setVolume(WELCOME_VOLUME * gain, WELCOME_VOLUME * gain)
+                pool.setVolume(streamId, WELCOME_VOLUME * gain, WELCOME_VOLUME * gain)
             }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (welcomeStreamId == streamId) {
+                        welcomeStreamId = 0
+                        pool.stop(streamId)
+                    }
+                }
+            })
             start()
         }
     }
 
     private fun stopWelcomeSound() {
+        pendingWelcomePlayback = false
+        val streamId = welcomeStreamId
+        welcomeStreamId = 0
         welcomeFadeAnimator?.cancel()
         welcomeFadeAnimator = null
-        welcomePlayer?.release()
-        welcomePlayer = null
+        if (streamId != 0) welcomeSoundPool?.stop(streamId)
     }
 
     private fun hideSystemBars() {
@@ -125,7 +143,8 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val WELCOME_VOLUME = 1f
-        const val WELCOME_START_DELAY_MS = 600L
+        const val WELCOME_START_DELAY_MS = 150L
+        const val WELCOME_SOUND_DURATION_MS = 1_929L
         const val WELCOME_FADE_IN_MS = 280L
         const val WELCOME_FADE_OUT_MS = 720L
     }

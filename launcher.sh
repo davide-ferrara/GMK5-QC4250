@@ -264,7 +264,6 @@ start_emulator() {
     nohup "$GOLF_EMULATOR" \
         -avd "$GOLF_AVD_NAME" \
         -port 5554 \
-        -no-audio \
         -no-boot-anim \
         -no-snapshot \
         -memory 1536 \

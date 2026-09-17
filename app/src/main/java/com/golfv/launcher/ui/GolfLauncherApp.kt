@@ -81,6 +81,7 @@ private enum class LauncherScreen { Splash, Home, Apps, Info }
 
 private const val SPLASH_DURATION_MS = 2_000L
 private const val SPLASH_FADE_DURATION_MS = 450
+private const val SPLASH_AUDIO_DELAY_MS = 150L
 
 @Composable
 fun GolfLauncherApp(onSplashFinished: () -> Unit = {}) {
@@ -92,7 +93,7 @@ fun GolfLauncherApp(onSplashFinished: () -> Unit = {}) {
             screen = LauncherScreen.Home
             // The audio HAL on the head unit can come up after the launcher UI.
             // Keep the Home visible first, then start the short welcome cue.
-            delay(600)
+            delay(SPLASH_AUDIO_DELAY_MS)
             onSplashFinished()
         }
     }
