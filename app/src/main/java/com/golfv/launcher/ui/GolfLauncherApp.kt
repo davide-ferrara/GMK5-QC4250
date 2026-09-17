@@ -14,6 +14,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
@@ -76,13 +79,22 @@ import kotlinx.coroutines.withContext
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
 
+private const val SPLASH_DURATION_MS = 2_000L
+private const val SPLASH_FADE_DURATION_MS = 450
+
 @Composable
-fun GolfLauncherApp() {
+fun GolfLauncherApp(onSplashFinished: () -> Unit = {}) {
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
 
     LaunchedEffect(Unit) {
-        delay(3_000)
-        if (screen == LauncherScreen.Splash) screen = LauncherScreen.Home
+        delay(SPLASH_DURATION_MS)
+        if (screen == LauncherScreen.Splash) {
+            screen = LauncherScreen.Home
+            // The audio HAL on the head unit can come up after the launcher UI.
+            // Keep the Home visible first, then start the short welcome cue.
+            delay(600)
+            onSplashFinished()
+        }
     }
 
     BackHandler(enabled = screen == LauncherScreen.Apps || screen == LauncherScreen.Info) {
@@ -95,7 +107,10 @@ fun GolfLauncherApp() {
             onOpenInfo = { screen = LauncherScreen.Info },
         )
 
-        if (screen == LauncherScreen.Splash) {
+        AnimatedVisibility(
+            visible = screen == LauncherScreen.Splash,
+            exit = fadeOut(animationSpec = tween(SPLASH_FADE_DURATION_MS)),
+        ) {
             SplashScreen()
         }
 
