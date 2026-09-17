@@ -179,6 +179,27 @@ private fun HomeScreen(
                 )
             }
         }
+
+        if (!BuildConfig.IS_STABLE) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(3f)
+                    .padding(top = 24.dp),
+                shape = CircleShape,
+                color = Color(0xD9140909),
+                shadowElevation = 8.dp,
+            ) {
+                Text(
+                    text = "DEV VERSION",
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    color = Color(0xFFFF3B30),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp,
+                )
+            }
+        }
     }
 }
 
