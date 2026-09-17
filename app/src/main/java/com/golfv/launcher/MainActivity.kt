@@ -1,6 +1,5 @@
 package com.golfv.launcher
 
-import android.animation.ValueAnimator
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.SoundPool
@@ -13,7 +12,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.golfv.launcher.ui.GolfLauncherApp
-import com.golfv.launcher.ui.theme.GolfLauncherTheme
 
 class MainActivity : ComponentActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -22,7 +20,6 @@ class MainActivity : ComponentActivity() {
     private var welcomeSoundLoaded = false
     private var pendingWelcomePlayback = false
     private var welcomeStreamId = 0
-    private var welcomeFadeAnimator: ValueAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,9 +28,7 @@ class MainActivity : ComponentActivity() {
         initializeWelcomeSound()
 
         setContent {
-            GolfLauncherTheme {
-                GolfLauncherApp(onSplashFinished = ::playWelcomeSound)
-            }
+            GolfLauncherApp(onSplashFinished = ::playWelcomeSound)
         }
     }
 
@@ -93,43 +88,13 @@ class MainActivity : ComponentActivity() {
         val pool = welcomeSoundPool ?: return
         if (!welcomeSoundLoaded || welcomeSoundId == 0) return
 
-        val streamId = pool.play(welcomeSoundId, 0f, 0f, 1, 0, 1f)
-        if (streamId == 0) return
-        welcomeStreamId = streamId
-
-        welcomeFadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = WELCOME_SOUND_DURATION_MS
-            addUpdateListener { animator ->
-                if (welcomeStreamId != streamId) return@addUpdateListener
-
-                val elapsedMs = (WELCOME_SOUND_DURATION_MS * animator.animatedFraction).toLong()
-                val gain = when {
-                    elapsedMs < WELCOME_FADE_IN_MS ->
-                        elapsedMs.toFloat() / WELCOME_FADE_IN_MS
-                    elapsedMs > WELCOME_SOUND_DURATION_MS - WELCOME_FADE_OUT_MS ->
-                        (WELCOME_SOUND_DURATION_MS - elapsedMs).toFloat() / WELCOME_FADE_OUT_MS
-                    else -> 1f
-                }.coerceIn(0f, 1f)
-                pool.setVolume(streamId, WELCOME_VOLUME * gain, WELCOME_VOLUME * gain)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (welcomeStreamId == streamId) {
-                        welcomeStreamId = 0
-                        pool.stop(streamId)
-                    }
-                }
-            })
-            start()
-        }
+        welcomeStreamId = pool.play(welcomeSoundId, 1f, 1f, 1, 0, 1f)
     }
 
     private fun stopWelcomeSound() {
         pendingWelcomePlayback = false
         val streamId = welcomeStreamId
         welcomeStreamId = 0
-        welcomeFadeAnimator?.cancel()
-        welcomeFadeAnimator = null
         if (streamId != 0) welcomeSoundPool?.stop(streamId)
     }
 
@@ -142,10 +107,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
-        const val WELCOME_VOLUME = 1f
         const val WELCOME_START_DELAY_MS = 150L
-        const val WELCOME_SOUND_DURATION_MS = 1_929L
-        const val WELCOME_FADE_IN_MS = 280L
-        const val WELCOME_FADE_OUT_MS = 720L
     }
 }

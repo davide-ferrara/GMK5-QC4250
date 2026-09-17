@@ -26,7 +26,8 @@ android {
         create("dev") {
             dimension = "channel"
             applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
+            versionCode = 6
+            versionName = "0.0.4"
             buildConfigField("boolean", "IS_STABLE", "false")
         }
     }
@@ -40,6 +41,13 @@ android {
                 "proguard-rules.pro",
             )
         }
+        create("optimized") {
+            initWith(getByName("release"))
+            // Local R8 test build: keep it separate from the stable debug package.
+            applicationIdSuffix = ".optimized"
+            versionNameSuffix = "-optimized"
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {
@@ -50,6 +58,10 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    androidResources {
+        noCompress += "flac"
     }
 
     packaging {

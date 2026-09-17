@@ -99,11 +99,15 @@ The individual operations are also available:
 
 ```sh
 make start       # Open the graphical Android emulator
-make build       # Compile the debug APK
-make run         # Build, install, and launch on the emulator
+make build       # Compile dev in debug mode
+make run         # Build, install, and launch dev on the emulator
+make build-stable # Compile stable mode with R8 and resource shrinking
+make run-stable  # Build, install, and launch stable mode on the emulator
 make test        # Run the Compose UI tests and restore the app afterward
-make install     # Install the existing APK on the emulator
+make install     # Install the existing dev APK on the emulator
+make install-stable DEVICE=SERIAL # Build and install stable mode on a device
 make launch      # Launch the installed app on the emulator
+make launch-stable DEVICE=SERIAL # Launch stable mode on a device
 make stop        # Stop the emulator
 make doctor      # Check Java, SDK, KVM, APK, and connected ADB devices
 make help        # Show every available command
@@ -117,9 +121,25 @@ safe to install beside the stable launcher. The generated APK is located at:
 app/build/outputs/apk/dev/debug/app-dev-debug.apk
 ```
 
-The stable package remains `com.golfv.launcher`. Updating it always requires
-the explicit `make build-stable` and `make install-stable` commands. Select the
-already installed stable package as HOME with `make set-home-stable`.
+`make run` builds the dev app in debug mode (`com.golfv.launcher.dev`). The
+stable-mode R8 build uses resource shrinking and the local debug signing key
+for device testing. Its test package is `com.golfv.launcher.optimized`, so it
+can be installed beside the dev app and any existing stable install. Build and
+install it on an emulator with `make run-stable`; on a tablet, use:
+
+```sh
+make install-stable DEVICE=DEVICE_SERIAL
+make launch-stable DEVICE=DEVICE_SERIAL
+make set-home-stable DEVICE=DEVICE_SERIAL  # optional: select it as HOME
+```
+
+`make doctor` lists connected ADB device serials. `make install-stable` builds
+the R8 APK before installing it. The APK is written to
+`app/build/outputs/apk/stable/optimized/app-stable-optimized.apk`. This
+debug-signed test build is not the distributable release APK. The animated car
+video is stored under `app/src/main/assets/` and loaded through
+`file:///android_asset/`; R8 can rename resources in `res/`, which would break
+the WebView's dynamic video URL in the minified build.
 
 Git follows the same split: `main` contains the tested stable baseline, while
 new work is committed and pushed to `dev`. Merge `dev` into `main` only after
@@ -138,6 +158,8 @@ Then install and launch using that explicit serial:
 ```sh
 make install DEVICE=DEVICE_SERIAL       # dev, installed alongside stable
 make launch DEVICE=DEVICE_SERIAL        # dev
+make install-stable DEVICE=DEVICE_SERIAL # stable mode, minified with R8
+make launch-stable DEVICE=DEVICE_SERIAL  # stable mode
 make set-home-stable DEVICE=DEVICE_SERIAL
 ```
 

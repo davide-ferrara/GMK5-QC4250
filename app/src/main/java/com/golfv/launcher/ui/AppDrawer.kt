@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -90,7 +91,7 @@ internal fun AppDrawerScreen(onClose: () -> Unit) {
         when (val loadedApps = apps) {
             null -> CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = Color(0xFF368DD0),
+                color = MaterialTheme.colorScheme.primary,
             )
 
             emptyList<AppEntry>() -> Text(
