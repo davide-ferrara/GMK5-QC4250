@@ -1,0 +1,11 @@
+Model Information:
+* title:	Volkswagen golf 5 2.0 TDI
+* source:	https://sketchfab.com/3d-models/volkswagen-golf-5-20-tdi-2ef3655a2b6e4af8b7709624673ea884
+* author:	bimboit34 (https://sketchfab.com/bimboit34)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Volkswagen golf 5 2.0 TDI" (https://sketchfab.com/3d-models/volkswagen-golf-5-20-tdi-2ef3655a2b6e4af8b7709624673ea884) by bimboit34 (https://sketchfab.com/bimboit34) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

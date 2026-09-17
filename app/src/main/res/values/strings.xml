@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Golf Mk5</string>
+    <string name="android_auto">Android Auto</string>
+    <string name="radio">Radio</string>
+    <string name="oem_settings">OEM settings</string>
+    <string name="android_settings">Android settings</string>
+    <string name="app_drawer">Applications</string>
+    <string name="close">Close</string>
+</resources>
