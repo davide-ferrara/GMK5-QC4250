@@ -27,9 +27,11 @@ covers, reflective lamp interiors and rectangular studio reflection lights.
 The world is pure black with no visible floor. Original detail textures are
 retained; the glass/paint appearance is controlled by physical materials.
 
-The animation is a looping front-quarter camera sweep: **7 seconds, 30 fps,
+The animation is a looping 360-degree camera orbit: **7 seconds, 30 fps,
 210 frames, 1024×600**, Cycles GPU, 128 samples with adaptive sampling and
 denoising. The loop's next frame (211) matches frame 1 and is not exported.
+The committed MP4 is the first rendering test; the car model, materials and
+lighting still need further refinement before production use.
 The saved scene uses production settings; `output/studio_black/preview.png`
 is only a reduced-resolution CPU proof.
 

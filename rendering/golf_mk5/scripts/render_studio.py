@@ -219,12 +219,13 @@ def main():
     scene.render.fps = 30
     scene.frame_start = 1
     scene.frame_end = 210
-    # Periodic motion gives matching position and velocity across the loop boundary.
+    # One complete orbit. Frame 211 matches frame 1 and supplies matching
+    # position and velocity across the loop boundary, but is not rendered.
     for frame in range(1, 212):
         phase = 2 * math.pi * (frame - 1) / 210
-        angle = math.radians(42 + 8 * math.sin(phase))
-        radius = 9.7 + 0.16 * math.cos(phase)
-        camera.location = (radius * math.sin(angle), -radius * math.cos(angle), 2.45 + 0.06 * math.cos(phase))
+        angle = math.radians(42) + phase
+        radius = 9.7
+        camera.location = (radius * math.sin(angle), -radius * math.cos(angle), 2.45)
         look_at(camera, (0, 0, 0.82))
         camera.keyframe_insert(data_path="location", frame=frame)
         camera.keyframe_insert(data_path="rotation_euler", frame=frame)
