@@ -19,6 +19,61 @@ adb shell pm enable --user 0 com.txznet.txz
 
 See [AGENTS.md](./AGENTS.md) for the verified component map and findings.
 
+## Dependencies
+
+The Android launcher is built with Kotlin, Jetpack Compose, and Gradle. The
+Gradle wrapper downloads its pinned Gradle version, and `make setup` downloads
+the Android SDK, build tools, platform tools, Android 11 system image, and
+emulator into ignored project directories. You do not need Android Studio or a
+system-wide Android SDK.
+
+### Arch Linux
+
+Install the host tools required by the setup script and build:
+
+```sh
+sudo pacman -S --needed jdk17-openjdk curl unzip coreutils make
+```
+
+Make Java 17 the active Java installation if you have multiple JDKs:
+
+```sh
+sudo archlinux-java set java-17-openjdk
+java -version
+```
+
+Then from the repository root, install the project-local Android toolchain:
+
+```sh
+make setup
+```
+
+Review and accept the Android SDK licenses when prompted. After setup, `make
+dev` builds and runs the launcher in the configured emulator. Internet access
+is needed for the initial SDK and Gradle downloads.
+
+The emulator uses KVM acceleration when `/dev/kvm` is available and falls back
+to slower software rendering otherwise. For KVM, enable hardware virtualization
+in firmware, use a kernel with KVM support, and grant your user access to the
+`kvm` group (log out and back in after changing group membership). The emulator
+can still run without KVM, but more slowly. Physical-device installs use the
+ADB binary downloaded by `make setup`; wireless debugging must already be
+paired and connected.
+
+### Optional 3D asset tools
+
+The separate Blender rendering workspace under `rendering/golf_mk5/` uses
+Blender for scene rendering and FFmpeg for video encoding. These are not needed
+to build or run the Android launcher. Install them on Arch only when working
+on those assets:
+
+```sh
+sudo pacman -S --needed blender ffmpeg
+```
+
+GPU rendering also requires a supported GPU and the matching driver/runtime;
+the rendering script reports an error if Blender cannot use one.
+
 ## Launcher development
 
 The custom launcher plan is documented in [LAUNCHER.md](./LAUNCHER.md). The
@@ -59,6 +114,10 @@ safe to install beside the stable launcher. The generated APK is located at:
 ```text
 app/build/outputs/apk/dev/debug/app-dev-debug.apk
 ```
+
+The dev build running in the Android 11 emulator:
+
+![Golf Mk5 launcher running in the dev emulator](./screenshots/launcher-dev-emulator.png)
 
 The stable package remains `com.golfv.launcher`. Updating it always requires
 the explicit `make build-stable` and `make install-stable` commands. Select the
