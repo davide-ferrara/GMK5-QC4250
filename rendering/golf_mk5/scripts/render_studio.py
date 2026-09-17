@@ -251,11 +251,12 @@ def main():
     scene.render.resolution_y = 600
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
-    scene.render.image_settings.color_mode = "RGB"
+    scene.render.image_settings.color_mode = "RGBA"
+    scene.render.film_transparent = True
     scene.view_settings.look = "AgX - Medium High Contrast"
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    scene.render.filepath = f"//output/studio_black/{REVISION}/frames/golf_"
-    (OUTPUT / REVISION / "frames").mkdir(parents=True, exist_ok=True)
+    scene.render.filepath = "//output/studio_black/transparent-v1/frames/golf_"
+    (OUTPUT / "transparent-v1" / "frames").mkdir(parents=True, exist_ok=True)
     scene.frame_set(1)
     bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT / "golf_mk5_studio_black.blend"))

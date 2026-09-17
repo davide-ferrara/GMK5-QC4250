@@ -22,6 +22,10 @@ if selected is None:
 
 scene = bpy.context.scene
 scene.cycles.device = "GPU"
+scene.render.film_transparent = True
+scene.render.image_settings.file_format = "PNG"
+scene.render.image_settings.color_mode = "RGBA"
+scene.render.filepath = "//output/studio_black/transparent-v1/frames/golf_"
 Path(bpy.path.abspath(scene.render.filepath)).parent.mkdir(parents=True, exist_ok=True)
 scene.render.use_overwrite = False
 scene.render.use_placeholder = False
