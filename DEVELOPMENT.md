@@ -18,7 +18,7 @@ interactively. Java 17 or newer, `curl`, and `unzip` must already be installed.
 Start the graphical 1024×600 emulator, compile, install, and open the launcher:
 
 ```sh
-make dev
+make run
 ```
 
 Other useful commands:

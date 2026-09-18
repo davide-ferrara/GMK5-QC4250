@@ -17,22 +17,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    flavorDimensions += "channel"
-    productFlavors {
-        create("stable") {
-            dimension = "channel"
-            buildConfigField("boolean", "IS_STABLE", "true")
-        }
-        create("dev") {
-            dimension = "channel"
-            applicationIdSuffix = ".dev"
-            versionCode = 6
-            versionName = "0.0.4"
+    buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
             buildConfigField("boolean", "IS_STABLE", "false")
         }
-    }
-
-    buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -40,12 +30,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-        }
-        create("optimized") {
-            initWith(getByName("release"))
-            // Local R8 test build: keep it separate from the stable debug package.
-            applicationIdSuffix = ".optimized"
-            versionNameSuffix = "-optimized"
+            buildConfigField("boolean", "IS_STABLE", "true")
+            // Sign the stable device build with the local key so it can update the tablet install.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

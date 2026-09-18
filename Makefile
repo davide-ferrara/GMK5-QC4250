@@ -3,22 +3,22 @@
 DEVICE ?=
 HEADLESS ?=
 
-.PHONY: help setup build build-stable start run run-stable dev test install install-stable launch launch-stable set-home-stable stop doctor
+.PHONY: help setup build build-stable start run run-stable test install install-stable launch launch-stable set-home-stable stop doctor
 
 help:
 	@printf '%s\n' \
 		'Golf Mk5 launcher' \
 		'' \
 		'  make setup                     Install the local Android toolchain' \
-		'  make run                       Build, install, and launch dev (debug)' \
+		'  make run                       Build, install, and launch debug' \
 		'  make run-stable                Build, install, and launch stable (R8)' \
-		'  make build                     Compile dev (debug)' \
+		'  make build                     Compile debug' \
 		'  make build-stable              Compile stable (R8)' \
 		'  make start [HEADLESS=1]        Start the Android emulator' \
-		'  make test                      Run UI tests and restore the dev app' \
-		'  make install DEVICE=<serial>   Install dev (debug) on an ADB device' \
+		'  make test                      Run UI tests and restore the debug app' \
+		'  make install DEVICE=<serial>   Install debug on an ADB device' \
 		'  make install-stable DEVICE=... Build and install stable (R8)' \
-		'  make launch DEVICE=<serial>    Launch dev on one ADB device' \
+		'  make launch DEVICE=<serial>    Launch debug on one ADB device' \
 		'  make launch-stable DEVICE=...  Launch stable on one ADB device' \
 		'  make set-home-stable DEVICE=... Select stable as default HOME' \
 		'  make stop                      Stop the local emulator' \
@@ -41,9 +41,6 @@ run:
 
 run-stable:
 	./launcher.sh run-stable
-
-dev:
-	./launcher.sh dev
 
 test:
 	./launcher.sh test
