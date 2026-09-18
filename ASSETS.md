@@ -23,3 +23,17 @@ publishing the asset in a public repository.
 - Retrieved: 2026-09-17
 - License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
 - Local processing: none; original FLAC retained (44.1 kHz, stereo, 1.93 s).
+
+## UI startup chime
+
+- Original file: `ui-startup-chime.wav`
+- App files: `app/src/debug/res/raw/welcome_sound.wav` and
+  `app/src/release/res/raw/welcome_sound.wav`
+- Title: “UI Startup Chime”
+- Author: mikiko850
+- Source: <https://freesound.org/people/mikiko850/sounds/857700/>
+- Retrieved: 2026-09-18
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Local processing: amplified by 35% (linear gain 1.35) for the launcher welcome
+  sound. The measured peak increased from −12.0 dB to −9.4 dB; the original
+  file is retained unchanged.
