@@ -15,4 +15,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "GolfMk5Launcher"
-include(":app")
+include(":launcher-app")
+include(":radio-app")

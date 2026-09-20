@@ -2,7 +2,7 @@
 
 Reverse-engineering notes for the Android head unit in a Volkswagen Golf Mk5.
 
-![Golf Mk5 launcher running in the debug emulator](./screenshots/launcher-dev-emulator.png)
+![Golf Mk5 launcher running in the emulator](./screenshots/launcher-emulator.png)
 
 ## Passwords
 
@@ -19,7 +19,7 @@ robot overlay disappeared after disabling `com.txznet.txz`; restore it with:
 adb shell pm enable --user 0 com.txznet.txz
 ```
 
-See [AGENTS.md](./AGENTS.md) for the verified component map and findings.
+See [AGENTS.md](./docs/AGENTS.md) for the verified component map and findings.
 
 ## Dependencies
 
@@ -51,7 +51,7 @@ make setup
 ```
 
 Review and accept the Android SDK licenses when prompted. After setup,
-`make run` builds and runs the debug launcher in the configured emulator.
+`make run` builds and runs the production launcher in the configured emulator.
 Internet access is needed for the initial SDK and Gradle downloads.
 
 The emulator uses KVM acceleration when `/dev/kvm` is available and falls back
@@ -78,7 +78,7 @@ the rendering script reports an error if Blender cannot use one.
 
 ## Launcher development
 
-The custom launcher plan is documented in [LAUNCHER.md](./LAUNCHER.md). The
+The custom launcher plan is documented in [LAUNCHER.md](./docs/LAUNCHER.md). The
 project uses a local Android 11 emulator configured like the head unit:
 1024×600, landscape, 160 dpi, and 60 Hz.
 
@@ -99,51 +99,29 @@ The individual operations are also available:
 
 ```sh
 make start       # Open the graphical Android emulator
-make build       # Compile the separate debug app
-make run         # Build, install, and launch debug on the emulator
-make build-stable # Compile stable mode with R8 and resource shrinking
-make run-stable  # Build, install, and launch stable mode on the emulator
-make test        # Run the Compose UI tests and restore the debug app afterward
-make install     # Install the existing debug APK on the emulator
-make install-stable DEVICE=SERIAL # Build and install stable mode on a device
-make launch      # Launch the installed app on the emulator
-make launch-stable DEVICE=SERIAL # Launch stable mode on a device
+make build       # Compile the production R8 APK
+make run         # Build, install, and launch on the emulator
+make test        # Run the Compose UI tests and restore the production app
+make install DEVICE=SERIAL # Build and install on a device
+make launch DEVICE=SERIAL  # Launch the installed app
+make set-home DEVICE=SERIAL # Optional: select it as HOME
 make stop        # Stop the emulator
 make doctor      # Check Java, SDK, KVM, APK, and connected ADB devices
 make help        # Show every available command
 ```
 
-The normal development commands build a separate app named **Golf Mk5 Debug**.
-It has package `com.golfv.launcher.debug`, cannot become the HOME app, and is
-safe to install beside the stable launcher. The generated APK is located at:
+There is one launcher package, **Golf Mk5** (`com.golfv.launcher`). Every
+normal command builds the R8-minified production APK, signed with the local key
+used by the tablet:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+launcher-app/build/outputs/apk/release/launcher-app-release.apk
 ```
 
-`make run` builds the debug app (`com.golfv.launcher.debug`). The stable build
-uses R8, resource shrinking, and the local debug signing key for device
-testing. It uses the stable package `com.golfv.launcher` and replaces the
-previous stable installation. Build and install it on an emulator with
-`make run-stable`; on a tablet, use:
-
-```sh
-make install-stable DEVICE=DEVICE_SERIAL
-make launch-stable DEVICE=DEVICE_SERIAL
-make set-home-stable DEVICE=DEVICE_SERIAL  # optional: select it as HOME
-```
-
-`make doctor` lists connected ADB device serials. `make install-stable` builds
-the R8 APK before installing it. The APK is written to
-`app/build/outputs/apk/release/app-release.apk`. This
-debug-signed device build is not the distributable release APK. The animated car
-video is stored under `app/src/main/assets/` and loaded through
-`file:///android_asset/`; R8 can rename resources in `res/`, which would break
-the WebView's dynamic video URL in the minified build.
-
-Git follows the same split: `main` contains the tested stable baseline, while
-new work is committed and pushed to `dev`. Merge `dev` into `main` only after
-the debug APK has passed the tablet test.
+`make install` always rebuilds before installing. The animated car video is
+stored under `launcher-app/src/main/assets/` and loaded through
+`file:///android_asset/`; R8 can rename resources in `res/`, which would
+break the WebView's dynamic video URL in the minified build.
 
 ### Installing on the head unit
 
@@ -156,19 +134,16 @@ adb devices -l
 Then install and launch using that explicit serial:
 
 ```sh
-make install DEVICE=DEVICE_SERIAL       # debug, installed alongside stable
-make launch DEVICE=DEVICE_SERIAL        # debug
-make install-stable DEVICE=DEVICE_SERIAL # stable mode, minified with R8
-make launch-stable DEVICE=DEVICE_SERIAL  # stable mode
-make set-home-stable DEVICE=DEVICE_SERIAL
+make install DEVICE=DEVICE_SERIAL
+make launch DEVICE=DEVICE_SERIAL
+make set-home DEVICE=DEVICE_SERIAL  # optional: select it as HOME
 ```
 
 Without `DEVICE=...`, the Make targets default to `emulator-5554`. This avoids
 accidentally installing on the car when multiple ADB devices are connected.
-The debug APK does not register as a HOME handler. Selecting stable as HOME does
-not disable either OEM launcher.
+Selecting Golf Mk5 as HOME does not disable either OEM launcher.
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for setup details and local generated
+See [DEVELOPMENT.md](./docs/DEVELOPMENT.md) for setup details and local generated
 directories.
 
 ### Publishing an in-app update
@@ -178,7 +153,7 @@ its first `.apk` asset, verifies its GitHub SHA-256 digest, package name,
 increasing `versionCode`, and signing certificate, then opens Android's package
 installer. To publish an update:
 
-1. increase both `versionCode` and `versionName` in `app/build.gradle.kts`;
+1. increase both `versionCode` and `versionName` in `launcher-app/build.gradle.kts`;
 2. build an APK signed with the same key as the APK already on the head unit;
 3. create a non-draft, non-prerelease GitHub Release tagged with the same
    version (for example `v0.2.3`) and attach the APK.

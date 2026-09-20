@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Golf Radio</string>
+    <string name="band_label">GOLF V   •   FM1</string>
+    <string name="seek_previous">◀  SEEK</string>
+    <string name="seek_next">SEEK  ▶</string>
+    <string name="save_preset_hint">Long press: save a station</string>
+    <string name="rds_waiting">WAITING FOR RDS</string>
+    <string name="tuner_connected">OEM tuner connected</string>
+    <string name="rds_station">RDS • %1$s</string>
+    <string name="seeking_station">Seeking station…</string>
+    <string name="tuning_to">Tuning to %1$s</string>
+    <string name="tuning_failed">Unable to tune station</string>
+    <string name="starting_tuner">Starting OEM tuner…</string>
+    <string name="oem_service_unavailable">OEM radio service unavailable</string>
+    <string name="frequency_unavailable">Frequency not available yet</string>
+    <string name="preset_saved">Station saved to button %1$d</string>
+    <string name="save_preset_here">Long press to save here</string>
+    <string name="rds_permission_required">RDS needs the ADB diagnostic permission</string>
+    <string name="rds_unavailable">RDS name unavailable</string>
+    <string name="welcome">WELCOME</string>
+    <string name="welcome_frequency">GOLF</string>
+    <string name="gala_radio_not_found">GalaRadio not found</string>
+</resources>

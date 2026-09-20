@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Golf Radio</string>
+    <string name="band_label">GOLF V   •   FM1</string>
+    <string name="seek_previous">◀  CERCA</string>
+    <string name="seek_next">CERCA  ▶</string>
+    <string name="save_preset_hint">Pressione lunga: memorizza una stazione</string>
+    <string name="rds_waiting">RDS IN ATTESA</string>
+    <string name="tuner_connected">Tuner OEM collegato</string>
+    <string name="rds_station">RDS • %1$s</string>
+    <string name="seeking_station">Ricerca stazione…</string>
+    <string name="tuning_to">Richiamo %1$s</string>
+    <string name="tuning_failed">Impossibile richiamare la stazione</string>
+    <string name="starting_tuner">Attivazione ricevitore OEM…</string>
+    <string name="oem_service_unavailable">Servizio radio OEM non accessibile</string>
+    <string name="frequency_unavailable">Frequenza non ancora disponibile</string>
+    <string name="preset_saved">Stazione salvata sul tasto %1$d</string>
+    <string name="save_preset_here">Tieni premuto per salvare qui</string>
+    <string name="rds_permission_required">RDS richiede il permesso diagnostico ADB</string>
+    <string name="rds_unavailable">Nome RDS non disponibile</string>
+    <string name="welcome">BENVENUTO</string>
+    <string name="welcome_frequency">GOLF</string>
+    <string name="gala_radio_not_found">GalaRadio non trovata</string>
+</resources>

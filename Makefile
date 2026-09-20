@@ -3,24 +3,20 @@
 DEVICE ?=
 HEADLESS ?=
 
-.PHONY: help setup build build-stable start run run-stable test install install-stable launch launch-stable set-home-stable stop doctor
+.PHONY: help setup build start run test install launch set-home stop doctor
 
 help:
 	@printf '%s\n' \
 		'Golf Mk5 launcher' \
 		'' \
 		'  make setup                     Install the local Android toolchain' \
-		'  make run                       Build, install, and launch debug' \
-		'  make run-stable                Build, install, and launch stable (R8)' \
-		'  make build                     Compile debug' \
-		'  make build-stable              Compile stable (R8)' \
+		'  make run                       Build, install, and launch the production app' \
+		'  make build                     Compile the production R8 APK' \
 		'  make start [HEADLESS=1]        Start the Android emulator' \
-		'  make test                      Run UI tests and restore the debug app' \
-		'  make install DEVICE=<serial>   Install debug on an ADB device' \
-		'  make install-stable DEVICE=... Build and install stable (R8)' \
-		'  make launch DEVICE=<serial>    Launch debug on one ADB device' \
-		'  make launch-stable DEVICE=...  Launch stable on one ADB device' \
-		'  make set-home-stable DEVICE=... Select stable as default HOME' \
+		'  make test                      Run UI tests and restore the production app' \
+		'  make install DEVICE=<serial>   Build and install on an ADB device' \
+		'  make launch DEVICE=<serial>    Launch on one ADB device' \
+		'  make set-home DEVICE=<serial>  Select it as default HOME' \
 		'  make stop                      Stop the local emulator' \
 		'  make doctor                    Check tools and connected ADB devices'
 
@@ -30,17 +26,11 @@ setup:
 build:
 	./launcher.sh build
 
-build-stable:
-	./launcher.sh build-stable
-
 start:
 	./launcher.sh start $(if $(HEADLESS),--headless,)
 
 run:
 	./launcher.sh run
-
-run-stable:
-	./launcher.sh run-stable
 
 test:
 	./launcher.sh test
@@ -48,17 +38,11 @@ test:
 install:
 	./launcher.sh install $(DEVICE)
 
-install-stable:
-	./launcher.sh install-stable $(DEVICE)
-
 launch:
 	./launcher.sh launch $(DEVICE)
 
-launch-stable:
-	./launcher.sh launch-stable $(DEVICE)
-
-set-home-stable:
-	./launcher.sh set-home-stable $(DEVICE)
+set-home:
+	./launcher.sh set-home $(DEVICE)
 
 stop:
 	./launcher.sh stop
