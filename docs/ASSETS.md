@@ -34,5 +34,6 @@ publishing the asset in a public repository.
 - Retrieved: 2026-09-18
 - License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
 - Local processing: amplified by 35% (linear gain 1.35) for the launcher welcome
-  sound. The measured peak increased from −12.0 dB to −9.4 dB; the original
-  file is retained unchanged.
+  sound. The measured peak increased from −12.0 dB to −9.4 dB. The app copy
+  has 1.2 seconds of PCM silence prepended so the head unit can wake its audio
+  path before the chime begins; the original file is retained unchanged.

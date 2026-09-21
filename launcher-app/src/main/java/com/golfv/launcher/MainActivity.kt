@@ -1,11 +1,11 @@
 package com.golfv.launcher
 
-import android.content.Intent
 import android.media.AudioAttributes
 import android.media.SoundPool
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
@@ -19,8 +19,10 @@ class MainActivity : ComponentActivity() {
     private var welcomeSoundPool: SoundPool? = null
     private var welcomeSoundId = 0
     private var welcomeSoundLoaded = false
-    private var pendingWelcomePlayback = false
+    private var welcomePlaybackRequested = false
+    private var welcomePlayAttempts = 0
     private var welcomeStreamId = 0
+    private val retryWelcomePlayback = Runnable { playWelcomeSoundNow() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,20 +52,13 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        // The activity is singleTask, so opening an already-running launcher
-        // delivers a new intent instead of recreating the splash composable.
-        window.decorView.postDelayed({ playWelcomeSound() }, WELCOME_START_DELAY_MS)
-    }
-
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(retryWelcomePlayback)
         stopWelcomeSound()
         welcomeSoundPool?.release()
         welcomeSoundPool = null
@@ -84,8 +79,9 @@ class MainActivity : ComponentActivity() {
             mainHandler.post {
                 if (welcomeSoundPool !== loadedPool) return@post
                 welcomeSoundLoaded = status == 0
-                if (welcomeSoundLoaded && pendingWelcomePlayback) {
-                    pendingWelcomePlayback = false
+                if (!welcomeSoundLoaded) {
+                    Log.w(TAG, "Welcome sound failed to load: status=$status")
+                } else if (welcomePlaybackRequested) {
                     playWelcomeSoundNow()
                 }
             }
@@ -94,23 +90,34 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playWelcomeSound() {
-        stopWelcomeSound()
-        if (!welcomeSoundLoaded) {
-            pendingWelcomePlayback = true
-            return
-        }
-        playWelcomeSoundNow()
+        // HOME is a singleTask activity and may receive several intents while the
+        // unit is booting. Consume the splash callback only once so a later event
+        // can never stop and restart a chime which is already playing.
+        if (welcomePlaybackRequested) return
+        welcomePlaybackRequested = true
+        if (welcomeSoundLoaded) playWelcomeSoundNow()
     }
 
     private fun playWelcomeSoundNow() {
         val pool = welcomeSoundPool ?: return
         if (!welcomeSoundLoaded || welcomeSoundId == 0) return
 
-        welcomeStreamId = pool.play(welcomeSoundId, 1f, 1f, 1, 0, 1f)
+        welcomePlayAttempts++
+        val streamId = pool.play(welcomeSoundId, 1f, 1f, 1, 0, 1f)
+        if (streamId != 0) {
+            welcomeStreamId = streamId
+            return
+        }
+
+        if (welcomePlayAttempts < MAX_WELCOME_PLAY_ATTEMPTS) {
+            mainHandler.postDelayed(retryWelcomePlayback, WELCOME_RETRY_DELAY_MS)
+        } else {
+            Log.w(TAG, "Welcome sound did not start after $welcomePlayAttempts attempts")
+        }
     }
 
     private fun stopWelcomeSound() {
-        pendingWelcomePlayback = false
+        mainHandler.removeCallbacks(retryWelcomePlayback)
         val streamId = welcomeStreamId
         welcomeStreamId = 0
         if (streamId != 0) welcomeSoundPool?.stop(streamId)
@@ -125,6 +132,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
-        const val WELCOME_START_DELAY_MS = 150L
+        const val TAG = "GolfLauncherAudio"
+        const val MAX_WELCOME_PLAY_ATTEMPTS = 3
+        const val WELCOME_RETRY_DELAY_MS = 200L
     }
 }
