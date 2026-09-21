@@ -240,7 +240,8 @@ private fun HomeScreen(
             ClockAndDate()
             Spacer(modifier = Modifier.weight(1f))
             Dock(
-                onAndroidAuto = { launchPackage(context, "com.zjinnova.zlink") },
+              // HUMAN CHANGE: I'm switching from com.zjinnova.zlink to com.andrerinas.headunitrevived
+                onAndroidAuto = { launchPackage(context, "com.andrerinas.headunitrevived") },
                 onRadio = { launchPackage(context, "com.golfv.radio") },
                 onOemSettings = {
                     launchIntent(
