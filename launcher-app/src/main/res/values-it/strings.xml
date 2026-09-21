@@ -26,6 +26,12 @@
     <string name="doors_open">Aperti: %1$s</string>
     <string name="can_speed_label">Velocità CAN</string>
     <string name="can_speed_unknown">In attesa della velocità CAN</string>
+    <string name="speed_unit">km/h</string>
+    <string name="home_preview_label">Anteprima schermata Home</string>
+    <string name="home_preview_auto">Automatico</string>
+    <string name="home_preview_speed">Velocità</string>
+    <string name="home_preview_golf">Golf</string>
+    <string name="home_preview_hint">Solo debug visivo. Velocità forza 0 km/h; Golf forza l’auto in prospettiva. Torna alla Home per controllare la vista selezionata.</string>
     <string name="open_repository">Apri repository</string>
     <string name="check_updates">Controlla aggiornamenti</string>
     <string name="update_checking">Controllo dell’ultima release GitHub…</string>

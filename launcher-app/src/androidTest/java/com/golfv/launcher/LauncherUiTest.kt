@@ -1,9 +1,11 @@
 package com.golfv.launcher
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performClick
@@ -78,5 +80,36 @@ class LauncherUiTest {
             .assertIsSelected()
         closeInfo()
         composeRule.onNodeWithTag("carLightsOff").assertIsDisplayed()
+    }
+
+    @Test
+    fun homePreviewCanForceSpeedAndGolfViews() {
+        composeRule.mainClock.advanceTimeBy(3_100)
+        val activity = composeRule.activity
+        composeRule.waitForIdle()
+
+        fun openInfo() {
+            composeRule.onNodeWithContentDescription(activity.getString(R.string.project_info))
+                .performClick()
+        }
+        fun closeInfo() {
+            composeRule.onNodeWithContentDescription(activity.getString(R.string.back))
+                .performClick()
+        }
+
+        openInfo()
+        composeRule.onNodeWithTag("homePreviewSpeed").performScrollTo().performClick()
+            .assertIsSelected()
+        closeInfo()
+        composeRule.onNodeWithTag("speedDisplay").assertIsDisplayed()
+        composeRule.onNodeWithText("0").assertIsDisplayed()
+        composeRule.onNodeWithText(activity.getString(R.string.speed_unit)).assertIsDisplayed()
+
+        openInfo()
+        composeRule.onNodeWithTag("homePreviewGolf").performScrollTo().performClick()
+            .assertIsSelected()
+        closeInfo()
+        composeRule.onNodeWithTag("speedDisplay").assertDoesNotExist()
+        composeRule.onNodeWithTag("carReplayArea").assertIsDisplayed()
     }
 }

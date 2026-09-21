@@ -103,6 +103,12 @@ private enum class LightsPreview(val label: Int) {
     Off(R.string.lights_preview_off),
 }
 
+private enum class HomePreview(val label: Int) {
+    Automatic(R.string.home_preview_auto),
+    Speed(R.string.home_preview_speed),
+    Golf(R.string.home_preview_golf),
+}
+
 private const val SPLASH_DURATION_MS = 2_000L
 private const val SPLASH_FADE_DURATION_MS = 450
 private const val SPLASH_AUDIO_DELAY_MS = 150L
@@ -132,6 +138,7 @@ fun GolfLauncherApp(
     // Visual override only; never change the CAN state or persist a test mode.
     var lightsPreview by remember { mutableStateOf(LightsPreview.Automatic) }
     var doorsPreview by remember { mutableStateOf<Int?>(null) }
+    var homePreview by remember { mutableStateOf(HomePreview.Automatic) }
     val doorMask = doorsPreview ?: (doorStates?.renderMask ?: 0)
     val lightsOn = when (lightsPreview) {
         LightsPreview.Automatic -> exteriorLightsState == ExteriorLightsState.On
@@ -162,6 +169,7 @@ fun GolfLauncherApp(
                 lightsOn = lightsOn,
                 doorMask = doorMask,
                 forceTopView = doorsPreview != null,
+                homePreview = homePreview,
                 onOpenApps = { screen = LauncherScreen.Apps },
                 onOpenInfo = { screen = LauncherScreen.Info },
             )
@@ -179,6 +187,8 @@ fun GolfLauncherApp(
                     exteriorLightsState = exteriorLightsState,
                     doorStates = doorStates,
                     lastSpeedKph = lastSpeedKph,
+                    homePreview = homePreview,
+                    onHomePreviewChange = { homePreview = it },
                     lightsPreview = lightsPreview,
                     onLightsPreviewChange = { lightsPreview = it },
                     doorsPreview = doorsPreview,
@@ -223,13 +233,14 @@ private fun HomeScreen(
     lightsOn: Boolean,
     doorMask: Int,
     forceTopView: Boolean,
+    homePreview: HomePreview,
     onOpenApps: () -> Unit,
     onOpenInfo: () -> Unit,
 ) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CarBackground(accentTheme, speedKph, lightsOn, doorMask, forceTopView)
+        CarBackground(accentTheme, speedKph, lightsOn, doorMask, forceTopView, homePreview)
 
         Column(
             modifier = Modifier
@@ -287,16 +298,22 @@ private fun CarBackground(
     lightsOn: Boolean,
     doorMask: Int,
     forceTopView: Boolean,
+    homePreview: HomePreview,
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
-    val vehicleIsMoving = shouldDisplayForwardSpeed(speedKph)
+    val showSpeed = when (homePreview) {
+        HomePreview.Automatic -> shouldDisplayForwardSpeed(speedKph)
+        HomePreview.Speed -> true
+        HomePreview.Golf -> false
+    }
+    val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else speedKph
     var videoFailed by remember { mutableStateOf(false) }
     var introComplete by remember { mutableStateOf(false) }
     val replayInteractionSource = remember { MutableInteractionSource() }
-    val showTopView = doorMask != 0 || forceTopView
+    val showTopView = homePreview == HomePreview.Automatic && (doorMask != 0 || forceTopView)
     // A stop after driving must not restart the intro.
-    LaunchedEffect(vehicleIsMoving, showTopView) {
-        if (vehicleIsMoving || showTopView) introComplete = true
+    LaunchedEffect(showSpeed, showTopView) {
+        if (showSpeed || showTopView) introComplete = true
     }
 
     Box(
@@ -324,12 +341,9 @@ private fun CarBackground(
             )
         }
 
-        if (vehicleIsMoving) {
-            Text(
-                text = speedKph.roundToInt().toString(),
-                color = Color.White,
-                fontSize = 180.sp,
-                fontWeight = FontWeight.Bold,
+        if (showSpeed) {
+            SpeedDisplay(
+                speedKph = displayedSpeedKph,
                 modifier = Modifier.align(Alignment.Center),
             )
         } else {
@@ -383,6 +397,36 @@ private fun CarBackground(
                     ),
             )
         }
+    }
+}
+
+@Composable
+private fun SpeedDisplay(speedKph: Float, modifier: Modifier = Modifier) {
+    val speedColor = when {
+        speedKph > 130f -> Color(0xFFFF4D4D)
+        speedKph > 99f -> Color(0xFFFFC247)
+        else -> Color.White
+    }
+    Row(
+        modifier = modifier.testTag("speedDisplay"),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Text(
+            text = speedKph.roundToInt().toString(),
+            color = speedColor,
+            fontSize = 180.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.testTag("speedValue"),
+        )
+        Text(
+            text = stringResource(R.string.speed_unit),
+            color = speedColor.copy(alpha = 0.86f),
+            fontSize = 36.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .padding(start = 12.dp, bottom = 28.dp)
+                .testTag("speedUnit"),
+        )
     }
 }
 
@@ -567,6 +611,8 @@ private fun ProjectInfoScreen(
     exteriorLightsState: ExteriorLightsState,
     doorStates: DoorStates?,
     lastSpeedKph: Float?,
+    homePreview: HomePreview,
+    onHomePreviewChange: (HomePreview) -> Unit,
     lightsPreview: LightsPreview,
     onLightsPreviewChange: (LightsPreview) -> Unit,
     doorsPreview: Int?,
@@ -637,6 +683,27 @@ private fun ProjectInfoScreen(
                 valueColor = if (lastSpeedKph == null) Color(0xFF8D9AA7) else Color.White,
             )
             Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.home_preview_label),
+                color = Color(0xFF8D9AA7),
+                fontSize = 18.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HomePreview.entries.forEach { mode ->
+                    FilterChip(
+                        selected = homePreview == mode,
+                        onClick = { onHomePreviewChange(mode) },
+                        label = { Text(stringResource(mode.label)) },
+                        modifier = Modifier.testTag("homePreview${mode.name}"),
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.home_preview_hint),
+                color = Color(0xFF8D9AA7),
+                fontSize = 14.sp,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 stringResource(R.string.lights_preview_label),
                 color = Color(0xFF8D9AA7),

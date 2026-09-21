@@ -26,6 +26,12 @@
     <string name="doors_open">Open: %1$s</string>
     <string name="can_speed_label">CAN speed</string>
     <string name="can_speed_unknown">Waiting for CAN speed</string>
+    <string name="speed_unit">km/h</string>
+    <string name="home_preview_label">Home view preview</string>
+    <string name="home_preview_auto">Automatic</string>
+    <string name="home_preview_speed">Speed</string>
+    <string name="home_preview_golf">Golf</string>
+    <string name="home_preview_hint">Visual debug only. Speed forces 0 km/h; Golf forces the perspective car. Return to Home to inspect the selected view.</string>
     <string name="accent_theme_label">Accent color</string>
     <string name="accent_theme_volkswagen">Volkswagen blue</string>
     <string name="accent_theme_red">Instrument red</string>
