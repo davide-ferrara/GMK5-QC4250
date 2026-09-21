@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+internal const val FORWARD_SPEED_DISPLAY_THRESHOLD_KPH = 0.5f
+
+/** Ignore reverse and sub-0.5 km/h stationary noise from the OEM CAN bridge. */
+internal fun shouldDisplayForwardSpeed(speedKph: Float): Boolean =
+    speedKph > FORWARD_SPEED_DISPLAY_THRESHOLD_KPH
+
 /**
  * Read-only vehicle signals published by the OEM Android integration.
  *
@@ -38,6 +44,15 @@ class VehicleSignals(context: Context) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val clearVehicleSpeed = Runnable { _vehicleSpeedKph.value = 0f }
+    private val retryCanbusObserver = Runnable { startCanbusObserver() }
+    private val canbusDeathRecipient = IBinder.DeathRecipient {
+        mainHandler.post {
+            canbusService = null
+            isCanbusRegistered = false
+            scheduleCanbusObserverRetry()
+        }
+    }
+    private var isStarted = false
     private var isRegistered = false
     private var canbusService: IBinder? = null
     private var isCanbusRegistered = false
@@ -74,7 +89,8 @@ class VehicleSignals(context: Context) {
 
     /** Start receiving OEM light-state changes while the launcher is visible. */
     fun start() {
-        if (isRegistered) return
+        if (isStarted) return
+        isStarted = true
 
         try {
             val initialBroadcast = ContextCompat.registerReceiver(
@@ -97,6 +113,8 @@ class VehicleSignals(context: Context) {
 
     /** Stop the dynamic receiver when this Activity is no longer foregrounded. */
     fun stop() {
+        isStarted = false
+        mainHandler.removeCallbacks(retryCanbusObserver)
         if (isRegistered) {
             applicationContext.unregisterReceiver(receiver)
             isRegistered = false
@@ -130,31 +148,50 @@ class VehicleSignals(context: Context) {
      * No CAN/MCU transmit method is present in this class.
      */
     private fun startCanbusObserver() {
-        if (isCanbusRegistered) return
+        if (!isStarted || isCanbusRegistered) return
 
         try {
             val serviceManager = Class.forName("android.os.ServiceManager")
             val getService = serviceManager.getMethod("getService", String::class.java)
-            val service = getService.invoke(null, CANBUS_SERVICE_NAME) as? IBinder ?: return
-            transactCanbus(service, CANBUS_TRANSACTION_REGISTER, canbusCallback)
+            val service = getService.invoke(null, CANBUS_SERVICE_NAME) as? IBinder
+            if (service == null) {
+                scheduleCanbusObserverRetry()
+                return
+            }
+            service.linkToDeath(canbusDeathRecipient, 0)
+            try {
+                transactCanbus(service, CANBUS_TRANSACTION_REGISTER, canbusCallback)
+            } catch (error: Exception) {
+                service.unlinkToDeath(canbusDeathRecipient, 0)
+                throw error
+            }
             canbusService = service
             isCanbusRegistered = true
         } catch (error: Exception) {
-            // The feature is optional: a firmware that blocks this hidden service
-            // leaves the launcher usable and the door state unknown.
+            // A firmware that starts this service late or restarts it while HOME
+            // is visible gets another registration attempt without restarting HOME.
             Log.w(TAG, "CAN receive callback unavailable", error)
+            scheduleCanbusObserverRetry()
         }
     }
 
+    private fun scheduleCanbusObserverRetry() {
+        mainHandler.removeCallbacks(retryCanbusObserver)
+        if (isStarted) mainHandler.postDelayed(retryCanbusObserver, CANBUS_RETRY_AFTER_MS)
+    }
+
     private fun stopCanbusObserver() {
-        val service = canbusService ?: return
+        mainHandler.removeCallbacks(retryCanbusObserver)
+        val service = canbusService
+        canbusService = null
+        isCanbusRegistered = false
+        if (service == null) return
         try {
             transactCanbus(service, CANBUS_TRANSACTION_UNREGISTER, canbusCallback)
         } catch (error: Exception) {
             Log.w(TAG, "CAN receive callback cleanup failed", error)
         } finally {
-            canbusService = null
-            isCanbusRegistered = false
+            runCatching { service.unlinkToDeath(canbusDeathRecipient, 0) }
         }
     }
 
@@ -187,6 +224,7 @@ class VehicleSignals(context: Context) {
         private const val CANBUS_TRANSACTION_REGISTER = 3
         private const val CANBUS_TRANSACTION_UNREGISTER = 6
         private const val CANBUS_CALLBACK_ON_RESULT = 1
+        private const val CANBUS_RETRY_AFTER_MS = 2_000L
         private const val SPEED_STALE_AFTER_MS = 1_500L
 
         /**

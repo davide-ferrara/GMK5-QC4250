@@ -82,6 +82,7 @@ import com.golfv.launcher.DoorStates
 import com.golfv.launcher.R
 import com.golfv.launcher.UpdateManager
 import com.golfv.launcher.UpdateResult
+import com.golfv.launcher.shouldDisplayForwardSpeed
 import com.golfv.launcher.ui.theme.AccentTheme
 import com.golfv.launcher.ui.theme.GolfLauncherTheme
 import java.io.File
@@ -92,7 +93,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
@@ -106,7 +106,6 @@ private enum class LightsPreview(val label: Int) {
 private const val SPLASH_DURATION_MS = 2_000L
 private const val SPLASH_FADE_DURATION_MS = 450
 private const val SPLASH_AUDIO_DELAY_MS = 150L
-private const val SPEED_DISPLAY_THRESHOLD_KPH = 0.05f
 private const val PREFERENCES_NAME = "launcher_preferences"
 private const val ACCENT_THEME_KEY = "accent_theme"
 
@@ -289,7 +288,7 @@ private fun CarBackground(
     forceTopView: Boolean,
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
-    val vehicleIsMoving = abs(speedKph) > SPEED_DISPLAY_THRESHOLD_KPH
+    val vehicleIsMoving = shouldDisplayForwardSpeed(speedKph)
     var videoFailed by remember { mutableStateOf(false) }
     var introComplete by remember { mutableStateOf(false) }
     val replayInteractionSource = remember { MutableInteractionSource() }
@@ -326,7 +325,7 @@ private fun CarBackground(
 
         if (vehicleIsMoving) {
             Text(
-                text = abs(speedKph).roundToInt().toString(),
+                text = speedKph.roundToInt().toString(),
                 color = Color.White,
                 fontSize = 180.sp,
                 fontWeight = FontWeight.Bold,

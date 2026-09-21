@@ -36,6 +36,15 @@ class DoorStatesTest {
         assertNull(VehicleSignals.vehicleSpeedKphFromFrame(frame(0x20), 10))
     }
 
+    @Test
+    fun showsSpeedOnlyAboveTheForwardMovementThreshold() {
+        assertFalse(shouldDisplayForwardSpeed(-0.32f))
+        assertFalse(shouldDisplayForwardSpeed(0f))
+        assertFalse(shouldDisplayForwardSpeed(0.5f))
+        assertTrue(shouldDisplayForwardSpeed(0.51f))
+        assertTrue(shouldDisplayForwardSpeed(15.76f))
+    }
+
     private fun frame(status: Int) = byteArrayOf(
         0x2E,
         0x41,
