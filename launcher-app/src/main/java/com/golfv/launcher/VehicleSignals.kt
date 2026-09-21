@@ -225,6 +225,13 @@ data class DoorStates(
     val door3RearDriver: Boolean,
     val door4RearPassenger: Boolean,
 ) {
+    /** Matches golf_top_00..15: driver front, passenger front, driver rear, passenger rear. */
+    val renderMask: Int
+        get() = (if (door1Driver) 1 else 0) or
+            (if (door2FrontPassenger) 2 else 0) or
+            (if (door3RearDriver) 4 else 0) or
+            (if (door4RearPassenger) 8 else 0)
+
     val hasOpenDoor: Boolean
         get() = door1Driver || door2FrontPassenger || door3RearDriver || door4RearPassenger
 

@@ -15,9 +15,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
@@ -39,6 +43,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +62,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -91,6 +97,12 @@ import kotlin.math.roundToInt
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
 
+private enum class LightsPreview(val label: Int) {
+    Automatic(R.string.lights_preview_auto),
+    On(R.string.lights_preview_on),
+    Off(R.string.lights_preview_off),
+}
+
 private const val SPLASH_DURATION_MS = 2_000L
 private const val SPLASH_FADE_DURATION_MS = 450
 private const val SPLASH_AUDIO_DELAY_MS = 150L
@@ -118,6 +130,15 @@ fun GolfLauncherApp(
     val doorStates by doors.collectAsState()
     val speedKph by vehicleSpeedKph.collectAsState()
     val lastSpeedKph by lastVehicleSpeedKph.collectAsState()
+    // Visual override only; never change the CAN state or persist a test mode.
+    var lightsPreview by remember { mutableStateOf(LightsPreview.Automatic) }
+    var doorsPreview by remember { mutableStateOf<Int?>(null) }
+    val doorMask = doorsPreview ?: (doorStates?.renderMask ?: 0)
+    val lightsOn = when (lightsPreview) {
+        LightsPreview.Automatic -> exteriorLightsState == ExteriorLightsState.On
+        LightsPreview.On -> true
+        LightsPreview.Off -> false
+    }
 
     GolfLauncherTheme(accentTheme) {
         LaunchedEffect(Unit) {
@@ -139,6 +160,9 @@ fun GolfLauncherApp(
             HomeScreen(
                 accentTheme = accentTheme,
                 speedKph = speedKph,
+                lightsOn = lightsOn,
+                doorMask = doorMask,
+                forceTopView = doorsPreview != null,
                 onOpenApps = { screen = LauncherScreen.Apps },
                 onOpenInfo = { screen = LauncherScreen.Info },
             )
@@ -156,6 +180,10 @@ fun GolfLauncherApp(
                     exteriorLightsState = exteriorLightsState,
                     doorStates = doorStates,
                     lastSpeedKph = lastSpeedKph,
+                    lightsPreview = lightsPreview,
+                    onLightsPreviewChange = { lightsPreview = it },
+                    doorsPreview = doorsPreview,
+                    onDoorsPreviewChange = { doorsPreview = it },
                     onAccentThemeChange = { selectedTheme ->
                         accentTheme = selectedTheme
                         preferences.edit()
@@ -193,13 +221,16 @@ private fun SplashScreen() {
 private fun HomeScreen(
     accentTheme: AccentTheme,
     speedKph: Float,
+    lightsOn: Boolean,
+    doorMask: Int,
+    forceTopView: Boolean,
     onOpenApps: () -> Unit,
     onOpenInfo: () -> Unit,
 ) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CarBackground(accentTheme, speedKph)
+        CarBackground(accentTheme, speedKph, lightsOn, doorMask, forceTopView)
 
         Column(
             modifier = Modifier
@@ -250,12 +281,23 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun CarBackground(accentTheme: AccentTheme, speedKph: Float) {
+private fun CarBackground(
+    accentTheme: AccentTheme,
+    speedKph: Float,
+    lightsOn: Boolean,
+    doorMask: Int,
+    forceTopView: Boolean,
+) {
     val accentColor = MaterialTheme.colorScheme.primary
     val vehicleIsMoving = abs(speedKph) > SPEED_DISPLAY_THRESHOLD_KPH
     var videoFailed by remember { mutableStateOf(false) }
-    var carWebView by remember { mutableStateOf<CarWebView?>(null) }
+    var introComplete by remember { mutableStateOf(false) }
     val replayInteractionSource = remember { MutableInteractionSource() }
+    val showTopView = doorMask != 0 || forceTopView
+    // A stop after driving must not restart the intro.
+    LaunchedEffect(vehicleIsMoving, showTopView) {
+        if (vehicleIsMoving || showTopView) introComplete = true
+    }
 
     Box(
         modifier = Modifier
@@ -291,31 +333,44 @@ private fun CarBackground(accentTheme: AccentTheme, speedKph: Float) {
                 modifier = Modifier.align(Alignment.Center),
             )
         } else {
-            AndroidView(
-                factory = { context ->
-                    CarWebView(context, onFailed = { videoFailed = true }).also {
-                        carWebView = it
-                    }
-                },
+            Crossfade(
+                targetState = showTopView,
+                animationSpec = tween(220),
+                label = "carView",
                 modifier = Modifier.fillMaxSize(),
-                onRelease = {
-                    if (carWebView === it) carWebView = null
-                    it.release()
-                },
-            )
-
-            if (videoFailed) {
-                Image(
-                    painter = painterResource(R.drawable.golf_mk5_final),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.fillMaxSize(),
-                )
+            ) { topView ->
+                if (topView) {
+                    DoorRender(
+                        mask = doorMask,
+                        lightsOn = lightsOn,
+                        modifier = Modifier.fillMaxSize().padding(top = 72.dp, bottom = 104.dp),
+                    )
+                } else if (introComplete || videoFailed) {
+                    Image(
+                        painter = painterResource(R.drawable.golf_mk5_final),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    CarLightsOverlay(lightsOn)
+                } else {
+                    AndroidView(
+                        factory = { context ->
+                            CarWebView(
+                                context,
+                                onFailed = { videoFailed = true },
+                                onFinished = { introComplete = true },
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        onRelease = { it.release() },
+                    )
+                }
             }
 
             // Keep the video view passive so it cannot steal touches from the dock.
             // This dedicated hit area preserves the tap-the-car replay easter egg.
-            Box(
+            if (!showTopView) Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .offset(y = (-5).dp)
@@ -324,9 +379,74 @@ private fun CarBackground(accentTheme: AccentTheme, speedKph: Float) {
                     .clickable(
                         interactionSource = replayInteractionSource,
                         indication = null,
-                        onClick = { carWebView?.replay() },
+                        onClick = { introComplete = false },
                     ),
             )
+        }
+    }
+}
+
+/** Match either the perspective frame (FillBounds) or the square top view (Fit). */
+@Composable
+internal fun CarLightsOverlay(lightsOn: Boolean, topView: Boolean = false) {
+    val opacity by animateFloatAsState(
+        targetValue = if (lightsOn) 1f else 0f,
+        animationSpec = tween(220),
+        label = "carLights",
+    )
+    Box(
+        modifier = Modifier.fillMaxSize()
+            .testTag(if (topView) {
+                if (lightsOn) "topLightsOn" else "topLightsOff"
+            } else if (lightsOn) "carLightsOn" else "carLightsOff")
+            .graphicsLayer { alpha = opacity },
+    ) {
+        // A translucent lens mask retains the details of the original render.
+        Image(
+            painter = painterResource(if (topView) R.drawable.golf_top_lights_overlay else R.drawable.golf_lights_overlay),
+            contentDescription = null,
+            contentScale = if (topView) ContentScale.Fit else ContentScale.FillBounds,
+            alpha = 0.55f,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val scaleX = if (topView) size.minDimension / 1024f else size.width / 1024f
+            val scaleY = if (topView) scaleX else size.height / 600f
+            val originX = if (topView) (size.width - size.minDimension) / 2f else 0f
+            val originY = if (topView) (size.height - size.minDimension) / 2f else 0f
+            fun glow(x: Float, y: Float, radius: Float, color: Color) {
+                val center = Offset(originX + x * scaleX, originY + y * scaleY)
+                val scaledRadius = radius * scaleX
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0f to color,
+                        0.18f to color.copy(alpha = color.alpha * 0.72f),
+                        0.48f to color.copy(alpha = color.alpha * 0.22f),
+                        1f to Color.Transparent,
+                        center = center,
+                        radius = scaledRadius,
+                    ),
+                    radius = scaledRadius,
+                    center = center,
+                )
+            }
+            // Several soft radii approximate optical bloom without a live blur
+            // or another render pass. Draw the wide spill before the bright core.
+            fun bloom(x: Float, y: Float, radius: Float, color: Color) {
+                glow(x, y, radius * 2.6f, color.copy(alpha = color.alpha * 0.18f))
+                glow(x, y, radius * 1.35f, color.copy(alpha = color.alpha * 0.42f))
+                glow(x, y, radius * 0.55f, color)
+            }
+            if (topView) {
+                bloom(403f, 179f, 32f, Color(0xD9FFF0CE))
+                bloom(621f, 179f, 32f, Color(0xD9FFF0CE))
+                bloom(380f, 838f, 22f, Color(0x99FF3020))
+                bloom(644f, 838f, 22f, Color(0x99FF3020))
+            } else {
+                bloom(404f, 352f, 30f, Color(0xD9FFF0CE))
+                bloom(257f, 335f, 20f, Color(0xBFFFF0CE))
+                bloom(741f, 274f, 14f, Color(0x99FF3020))
+            }
         }
     }
 }
@@ -334,6 +454,7 @@ private fun CarBackground(accentTheme: AccentTheme, speedKph: Float) {
 private class CarWebView(
     context: Context,
     onFailed: () -> Unit,
+    onFinished: () -> Unit,
 ) : WebView(context) {
     init {
         setBackgroundColor(android.graphics.Color.TRANSPARENT)
@@ -353,6 +474,11 @@ private class CarWebView(
                 @JavascriptInterface
                 fun onVideoError() {
                     post { onFailed() }
+                }
+
+                @JavascriptInterface
+                fun onVideoFinished() {
+                    post { onFinished() }
                 }
 
             },
@@ -380,10 +506,6 @@ private class CarWebView(
 
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean = false
 
-    fun replay() {
-        evaluateJavascript("window.replayCarVideo && window.replayCarVideo()", null)
-    }
-
     fun release() {
         stopLoading()
         removeJavascriptInterface("CarVideoNative")
@@ -401,12 +523,12 @@ const car=document.getElementById('car');
 const stage=document.getElementById('stage');
 const paint=stage.getContext('2d',{alpha:true});
 car.addEventListener('error',()=>CarVideoNative.onVideoError());
+car.addEventListener('ended',()=>CarVideoNative.onVideoFinished());
 const frameInterval=1000/30;
 let lastPaint=0;
-function drawCarFrame(now){if(car.readyState>=2&&now-lastPaint>=frameInterval){lastPaint=now;paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600)}requestAnimationFrame(drawCarFrame)}
-requestAnimationFrame(drawCarFrame);
+function drawCarFrame(now){if(car.readyState>=2&&now-lastPaint>=frameInterval){lastPaint=now;paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600)}if(!car.paused&&!car.ended)requestAnimationFrame(drawCarFrame)}
+car.addEventListener('play',()=>requestAnimationFrame(drawCarFrame));
 car.play().catch(()=>CarVideoNative.onVideoError());
-window.replayCarVideo=()=>{car.pause();car.currentTime=0;car.play().catch(()=>CarVideoNative.onVideoError());};
 </script></body></html>
 """
 
@@ -445,6 +567,10 @@ private fun ProjectInfoScreen(
     exteriorLightsState: ExteriorLightsState,
     doorStates: DoorStates?,
     lastSpeedKph: Float?,
+    lightsPreview: LightsPreview,
+    onLightsPreviewChange: (LightsPreview) -> Unit,
+    doorsPreview: Int?,
+    onDoorsPreviewChange: (Int?) -> Unit,
     onAccentThemeChange: (AccentTheme) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -475,7 +601,8 @@ private fun ProjectInfoScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 28.dp),
+                .padding(horizontal = 28.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
             Text(
                 text = stringResource(R.string.project_info),
@@ -511,6 +638,33 @@ private fun ProjectInfoScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
+                stringResource(R.string.lights_preview_label),
+                color = Color(0xFF8D9AA7),
+                fontSize = 18.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LightsPreview.entries.forEach { mode ->
+                    FilterChip(
+                        selected = lightsPreview == mode,
+                        onClick = { onLightsPreviewChange(mode) },
+                        label = { Text(stringResource(mode.label)) },
+                        modifier = Modifier.testTag("lightsPreview${mode.name}"),
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.lights_preview_hint),
+                color = Color(0xFF8D9AA7),
+                fontSize = 14.sp,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            DoorPreviewControls(
+                preview = doorsPreview,
+                canMask = doorStates?.renderMask ?: 0,
+                onChange = onDoorsPreviewChange,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
                 text = stringResource(R.string.accent_theme_label),
                 color = Color(0xFF8D9AA7),
                 fontSize = 18.sp,
@@ -543,7 +697,7 @@ private fun ProjectInfoScreen(
                     lineHeight = 22.sp,
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(20.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End),

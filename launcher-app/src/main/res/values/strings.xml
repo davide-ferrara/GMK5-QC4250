@@ -39,4 +39,18 @@
     <string name="update_permission_denied">Allow this app to install updates, then try again.</string>
     <string name="update_invalid_apk">The release APK failed its security checks.</string>
     <string name="update_failed">Unable to update. Check the internet connection and the GitHub release.</string>
+    <string name="lights_preview_label">Car lights preview</string>
+    <string name="lights_preview_auto">Automatic CAN</string>
+    <string name="lights_preview_on">On</string>
+    <string name="lights_preview_off">Off</string>
+    <string name="lights_preview_hint">Visual preview only. Return to Home to see it after the rotation. CAN diagnostics stay unchanged.</string>
+    <string name="doors_top_view">Car door status from above</string>
+    <string name="doors_preview_label">Door preview</string>
+    <string name="doors_preview_closed">All closed</string>
+    <string name="doors_preview_open">All open</string>
+    <string name="door_front_driver">1 · Front driver</string>
+    <string name="door_front_passenger">2 · Front passenger</string>
+    <string name="door_rear_driver">3 · Rear driver</string>
+    <string name="door_rear_passenger">4 · Rear passenger</string>
+    <string name="doors_preview_hint">Visual preview only: select doors and return to Home. Automatic CAN restores live signals. The lights preview also applies to the top view.</string>
 </resources>

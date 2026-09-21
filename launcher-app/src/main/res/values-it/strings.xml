@@ -36,4 +36,18 @@
     <string name="update_permission_denied">Consenti a questa app di installare aggiornamenti, poi riprova.</string>
     <string name="update_invalid_apk">L’APK della release non ha superato i controlli di sicurezza.</string>
     <string name="update_failed">Aggiornamento non riuscito. Controlla la connessione e la release GitHub.</string>
+    <string name="lights_preview_label">Anteprima luci auto</string>
+    <string name="lights_preview_auto">Automatico CAN</string>
+    <string name="lights_preview_on">Accese</string>
+    <string name="lights_preview_off">Spente</string>
+    <string name="lights_preview_hint">Solo anteprima visiva. Torna alla Home per vederla dopo la rotazione. La diagnostica CAN resta invariata.</string>
+    <string name="doors_top_view">Stato sportelli auto visto dall’alto</string>
+    <string name="doors_preview_label">Anteprima sportelli</string>
+    <string name="doors_preview_closed">Tutti chiusi</string>
+    <string name="doors_preview_open">Tutti aperti</string>
+    <string name="door_front_driver">1 · Anteriore guidatore</string>
+    <string name="door_front_passenger">2 · Anteriore passeggero</string>
+    <string name="door_rear_driver">3 · Posteriore guidatore</string>
+    <string name="door_rear_passenger">4 · Posteriore passeggero</string>
+    <string name="doors_preview_hint">Solo anteprima: seleziona gli sportelli e torna alla Home. Automatico CAN ripristina i segnali reali. L’anteprima luci vale anche per la vista dall’alto.</string>
 </resources>

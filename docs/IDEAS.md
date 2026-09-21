@@ -9,11 +9,18 @@ con retrocamera, MCU o servizi OEM.
 
 - Creare un render della Golf coerente con la vista attuale, con fari spenti e
   accesi.
-- Preparare una carrozzeria senza sportelli e, per ciascuno dei quattro
-  sportelli, due livelli trasparenti: aperto e chiuso. Con un ulteriore livello
-  trasparente per i fari accesi, il launcher compone al volo la combinazione
-  corretta. Servono circa 10 asset invece di 32 render completi: le 16
-  combinazioni degli sportelli (`2^4`) moltiplicate per fari spenti/accesi.
+- Usare 16 render completi dall’alto per le combinazioni dei quattro sportelli,
+  senza livelli separati per le porte. I bit 1, 2, 4, 8 indicano rispettivamente
+  anteriore guidatore, anteriore passeggero, posteriore guidatore e posteriore
+  passeggero; selezionano `golf_top_00.webp` … `golf_top_15.webp`.
+- Con almeno uno sportello aperto mostrare la vista dall’alto; con tutti chiusi
+  tornare alla vista attuale senza ripetere l’intro. La velocità in movimento
+  mantiene la precedenza. In Info è disponibile una simulazione solo visiva,
+  compresa la vista dall’alto con tutti chiusi, e il ritorno ad Automatico CAN.
+- [x] Renderizzato l’overlay dei fari dalla stessa camera ortografica dei 16
+  render, con bloom e dissolvenza collegati al CAN e all’anteprima luci in Info.
+  Le luci rimangono l’unico overlay: nessuna duplicazione delle 16 immagini
+  per luci on/off. L’overlay segue scala e centratura della vista dall’alto.
 - Tenere una variante di fallback già composta per i dispositivi su cui la
   composizione o il video 3D risultassero troppo pesanti.
 - Quando luci e sportelli cambiano insieme, applicare una breve dissolvenza

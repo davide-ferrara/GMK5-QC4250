@@ -1,5 +1,40 @@
 # Golf Mk5 render workspace
 
+## Door-state images used by the launcher
+
+The articulated working scene is `golf_mk5_all_doors.blend`, separate from
+the original `golf_mk5_studio_black.blend`. Export all 16 complete orthographic
+images (1024×1024 with transparency) from this directory:
+
+```sh
+blender -b golf_mk5_all_doors.blend --python scripts/render_door_states.py
+bash scripts/encode_door_states.sh
+```
+
+PNG masters go to `output/studio_black/door-states-v1/`; lossless WebP images
+go to the launcher's `drawable-nodpi` resources. Bits 1, 2, 4 and 8 represent
+driver front, passenger front, driver rear and passenger rear. An angle of
+zero closes each door; open doors use 58 degrees. Export does not save the scene.
+
+The launcher selects the complete image directly from the four CAN booleans.
+It uses the perspective view when all doors are closed, the top view when any
+door is open, and speed while moving. Info has a session-only visual override
+for all combinations, including the closed top view. Unknown CAN door state
+uses the normal perspective view. Returning to Auto reads the current CAN state.
+Both views have a lights overlay controlled by CAN or the lights preview in
+Info. The top overlay uses the same orthographic camera and 1024×1024 canvas
+as every door state. Compose applies the same Fit scaling and centering to
+the base image, lamp mask and bloom. Regenerate the top overlay with:
+
+```sh
+blender -b golf_mk5_all_doors.blend --python scripts/render_lights_overlay.py -- --top
+cp output/studio_black/door-states-v1/lights/golf_top_lights_overlay.png ../../launcher-app/src/main/res/drawable-nodpi/
+```
+
+Manual check: toggle each of the four doors in Info, try all-open/all-closed,
+return to Auto, and verify movement still replaces the car with speed. Confirm
+that opening a door interrupts the intro and closing it does not replay it.
+
 This directory contains the isolated Blender workspace for the launcher car
 animation.
 
