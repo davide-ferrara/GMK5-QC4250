@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -35,8 +36,14 @@ class MainActivity : Activity() {
     private val presetViews = mutableListOf<TextView>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val logExecutor = Executors.newSingleThreadExecutor()
+    private val preferences: SharedPreferences by lazy {
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+    }
     private var logcatProcess: Process? = null
     private var receiverRegistered = false
+    private var radioStarted = false
+    private var commandGeneration = 0
+    private var pendingTuneFrequency: Int? = null
     private var currentFrequency = -1
     private var currentStationName = ""
 
@@ -50,7 +57,9 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        currentStationName = getString(R.string.rds_waiting)
+        currentFrequency = preferences.getInt(KEY_LAST_FREQUENCY, -1)
+        currentStationName = preferences.getString(KEY_LAST_STATION_NAME, null)
+            ?: getString(R.string.rds_waiting)
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
@@ -61,15 +70,20 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        radioStarted = true
         if (!receiverRegistered) {
             registerReceiver(frequencyReceiver, IntentFilter(ACTION_FREQUENCY_CHANGED))
             receiverRegistered = true
         }
-        startRadioBackend()
+        restoreRadio()
         startRdsReader()
     }
 
     override fun onStop() {
+        radioStarted = false
+        commandGeneration++
+        pendingTuneFrequency = null
+        persistCurrentStation()
         logcatProcess?.destroy()
         logcatProcess = null
         if (receiverRegistered) {
@@ -203,8 +217,16 @@ class MainActivity : Activity() {
     }
 
     private fun updateFrequency(frequency: Int) {
+        if (pendingTuneFrequency == frequency) {
+            pendingTuneFrequency = null
+            commandGeneration++
+        }
+        val stationChanged = currentFrequency != frequency
         currentFrequency = frequency
-        currentStationName = getString(R.string.rds_waiting)
+        if (stationChanged) currentStationName = getString(R.string.rds_waiting)
+        val editor = preferences.edit().putInt(KEY_LAST_FREQUENCY, frequency)
+        if (stationChanged) editor.remove(KEY_LAST_STATION_NAME)
+        editor.commit()
         frequencyView.text = formatFrequencyNumber(frequency)
         stationNameView.text = currentStationName
         tuningScale.frequency = frequency
@@ -216,6 +238,10 @@ class MainActivity : Activity() {
         if (name.isBlank() || (currentFrequency > 0 && frequency != currentFrequency)) return
         if (currentFrequency <= 0) updateFrequency(frequency)
         currentStationName = name.trim().uppercase(Locale.ITALY)
+        preferences.edit()
+            .putInt(KEY_LAST_FREQUENCY, frequency)
+            .putString(KEY_LAST_STATION_NAME, currentStationName)
+            .commit()
         stationNameView.text = currentStationName
         updateSavedName(frequency, currentStationName)
         refreshPresetViews()
@@ -223,42 +249,84 @@ class MainActivity : Activity() {
     }
 
     private fun sendRadioAction(action: String) {
-        if (startRadioBackend(action)) {
+        commandGeneration++
+        pendingTuneFrequency = null
+        if (sendServiceIntent(Intent(action).apply { component = RADIO_SERVICE })) {
             setStatus(getString(R.string.seeking_station))
         }
     }
 
     private fun tuneTo(frequency: Int) {
-        try {
-            startForegroundService(Intent(ACTION_CONTROL_RADIO).apply {
-                component = RADIO_SERVICE
-                putExtra(EXTRA_METHOD, METHOD_SET_FREQUENCY)
-                putExtra(EXTRA_PARAMETER_FREQUENCY, frequency)
-            })
-            setStatus(getString(R.string.tuning_to, formatFrequency(frequency)))
-        } catch (error: Exception) {
-            setStatus(getString(R.string.tuning_failed))
+        if (frequency <= 0) return
+        if (currentFrequency != frequency) {
+            currentStationName = getString(R.string.rds_waiting)
+            stationNameView.text = currentStationName
+        }
+        currentFrequency = frequency
+        frequencyView.text = formatFrequencyNumber(frequency)
+        tuningScale.frequency = frequency
+        highlightCurrentPreset()
+        persistCurrentStation()
+        sendTuneWithRetry(frequency)
+        setStatus(getString(R.string.tuning_to, formatFrequency(frequency)))
+    }
+
+    private fun restoreRadio() {
+        startRadioBackend()
+        val savedFrequency = currentFrequency.takeIf { it > 0 }
+            ?: firstSavedPreset()
+        if (savedFrequency != null) {
+            currentFrequency = savedFrequency
+            frequencyView.text = formatFrequencyNumber(savedFrequency)
+            tuningScale.frequency = savedFrequency
+            mainHandler.postDelayed({
+                if (radioStarted) sendTuneWithRetry(savedFrequency)
+            }, BACKEND_WARMUP_MS)
+        } else {
+            // A seek is the only command verified on the QC4250 to open the
+            // tuner, request audio focus and publish the current frequency.
+            mainHandler.postDelayed({
+                if (radioStarted && currentFrequency <= 0) startRadioBackend()
+            }, BACKEND_WARMUP_MS)
+            mainHandler.postDelayed({
+                if (radioStarted && currentFrequency <= 0) {
+                    sendRadioAction(ACTION_SEEK_NEXT)
+                }
+            }, FIRST_TUNE_DELAY_MS)
         }
     }
 
-    /**
-     * GalaRadio owns the tuner and audio source. Start its exported service as
-     * soon as this UI becomes visible, rather than waiting for the first seek
-     * or preset action.
-     */
-    private fun startRadioBackend(action: String? = null): Boolean = try {
-            val intent = Intent().apply {
-                component = RADIO_SERVICE
-                if (action != null) this.action = action
-            }
+    private fun sendTuneWithRetry(frequency: Int) {
+        val generation = ++commandGeneration
+        pendingTuneFrequency = frequency
+        TUNE_RETRY_DELAYS_MS.forEach { delay ->
+            mainHandler.postDelayed({
+                if (!radioStarted || generation != commandGeneration || pendingTuneFrequency != frequency) {
+                    return@postDelayed
+                }
+                val sent = sendServiceIntent(Intent(ACTION_CONTROL_RADIO).apply {
+                    component = RADIO_SERVICE
+                    putExtra(EXTRA_METHOD, METHOD_SET_FREQUENCY)
+                    putExtra(EXTRA_PARAMETER_FREQUENCY, frequency)
+                })
+                if (!sent) setStatus(getString(R.string.tuning_failed))
+            }, delay)
+        }
+    }
+
+    /** GalaRadio remains the owner of the tuner and the radio audio source. */
+    private fun startRadioBackend(): Boolean =
+        sendServiceIntent(Intent().apply { component = RADIO_SERVICE })
+
+    private fun sendServiceIntent(intent: Intent): Boolean = try {
             startForegroundService(intent)
             if (currentFrequency <= 0) {
                 setStatus(getString(R.string.starting_tuner))
             }
             true
         } catch (error: Exception) {
+            Log.e("GolfRadio", "OEM radio command failed", error)
             setStatus(getString(R.string.oem_service_unavailable))
-            Toast.makeText(this, error.javaClass.simpleName, Toast.LENGTH_LONG).show()
             false
         }
 
@@ -267,17 +335,21 @@ class MainActivity : Activity() {
             Toast.makeText(this, R.string.frequency_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+        val saved = preferences.edit()
             .putInt("frequency_$index", currentFrequency)
             .putString("name_$index", currentStationName.takeUnless { it == getString(R.string.rds_waiting) })
-            .apply()
+            .putInt(KEY_LAST_FREQUENCY, currentFrequency)
+            .commit()
+        if (!saved) {
+            Toast.makeText(this, R.string.preset_save_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
         refreshPresetViews()
         Toast.makeText(this, getString(R.string.preset_saved, index + 1), Toast.LENGTH_SHORT).show()
     }
 
     private fun recallPreset(index: Int) {
-        val frequency = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getInt("frequency_$index", -1)
+        val frequency = preferences.getInt("frequency_$index", -1)
         if (frequency <= 0) {
             Toast.makeText(this, R.string.save_preset_here, Toast.LENGTH_SHORT).show()
             return
@@ -286,10 +358,9 @@ class MainActivity : Activity() {
     }
 
     private fun refreshPresetViews() {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         presetViews.forEachIndexed { index, view ->
-            val frequency = prefs.getInt("frequency_$index", -1)
-            val name = prefs.getString("name_$index", null)
+            val frequency = preferences.getInt("frequency_$index", -1)
+            val name = preferences.getString("name_$index", null)
             view.text = if (frequency > 0) {
                 "${index + 1}  ${name?.take(9) ?: "FM"}\n${formatFrequencyNumber(frequency)}"
             } else {
@@ -300,25 +371,39 @@ class MainActivity : Activity() {
     }
 
     private fun highlightCurrentPreset() {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         presetViews.forEachIndexed { index, view ->
             view.background = presetBackground(
-                currentFrequency > 0 && prefs.getInt("frequency_$index", -1) == currentFrequency,
+                currentFrequency > 0 && preferences.getInt("frequency_$index", -1) == currentFrequency,
             )
         }
     }
 
     private fun updateSavedName(frequency: Int, name: String) {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val editor = prefs.edit()
+        val editor = preferences.edit()
         var changed = false
         repeat(8) { index ->
-            if (prefs.getInt("frequency_$index", -1) == frequency) {
+            if (preferences.getInt("frequency_$index", -1) == frequency) {
                 editor.putString("name_$index", name)
                 changed = true
             }
         }
-        if (changed) editor.apply()
+        if (changed) editor.commit()
+    }
+
+    private fun firstSavedPreset(): Int? = (0 until PRESET_COUNT)
+        .firstNotNullOfOrNull { index ->
+            preferences.getInt("frequency_$index", -1).takeIf { it > 0 }
+        }
+
+    private fun persistCurrentStation() {
+        if (currentFrequency <= 0) return
+        preferences.edit()
+            .putInt(KEY_LAST_FREQUENCY, currentFrequency)
+            .putString(
+                KEY_LAST_STATION_NAME,
+                currentStationName.takeUnless { it == getString(R.string.rds_waiting) },
+            )
+            .commit()
     }
 
     private fun startRdsReader() {
@@ -422,6 +507,9 @@ class MainActivity : Activity() {
     private companion object {
         const val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
         const val PREFS = "radio_presets"
+        const val KEY_LAST_FREQUENCY = "last_frequency"
+        const val KEY_LAST_STATION_NAME = "last_station_name"
+        const val PRESET_COUNT = 8
         const val RADIO_PACKAGE = "com.acloud.stub.extradio"
         val RADIO_SERVICE = ComponentName(RADIO_PACKAGE, "com.radio.service.RadioService")
 
@@ -433,6 +521,9 @@ class MainActivity : Activity() {
         const val EXTRA_METHOD = "method"
         const val EXTRA_PARAMETER_FREQUENCY = "param_freq"
         const val METHOD_SET_FREQUENCY = "method_setFreq"
+        const val BACKEND_WARMUP_MS = 300L
+        const val FIRST_TUNE_DELAY_MS = 900L
+        val TUNE_RETRY_DELAYS_MS = longArrayOf(0L, 900L, 2_400L)
 
         val BACKGROUND = Color.rgb(9, 12, 16)
         val SURFACE = Color.rgb(17, 24, 32)

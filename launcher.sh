@@ -10,7 +10,8 @@ GOLF_GRADLE_CACHE_DIR="$GOLF_PROJECT_DIR/.gradle-cache"
 GOLF_RUNTIME_DIR="$GOLF_PROJECT_DIR/.runtime"
 GOLF_AVD_NAME="golf_mk5_api30"
 GOLF_EMULATOR_SERIAL="emulator-5554"
-GOLF_APK="$GOLF_PROJECT_DIR/launcher-app/build/outputs/apk/release/launcher-app-release.apk"
+GOLF_LAUNCHER_APK="$GOLF_PROJECT_DIR/launcher-app/build/outputs/apk/release/launcher-app-release.apk"
+GOLF_RADIO_APK="$GOLF_PROJECT_DIR/radio-app/build/outputs/apk/release/radio-app-release.apk"
 GOLF_PACKAGE="com.golfv.launcher"
 GOLF_ACTIVITY="$GOLF_PACKAGE/com.golfv.launcher.MainActivity"
 GOLF_CMDLINE_TOOLS_VERSION="15859902"
@@ -46,12 +47,12 @@ Usage:
 Commands:
   setup    Download the local Android SDK, accept its licenses interactively,
            install Android 11 emulator packages, and create the 1024x600 AVD.
-  build    Compile the production APK (com.golfv.launcher).
+  build    Compile the production launcher and radio APKs.
   start    Open the Android 11 emulator; use --headless for CI-style use.
   run      Build, install, and launch on the local emulator.
   test     Run Compose UI tests on the local emulator, then restore the app.
-  install  Build and install the production APK. Defaults to emulator-5554. Passing an ADB
-           serial is required to target a different device such as the car.
+  install  Build and install both production APKs. Defaults to emulator-5554. Passing
+           an ADB serial is required to target a different device such as the car.
   launch   Launch the production APK. Defaults to emulator-5554.
   set-home Select the launcher as Android's default HOME handler.
   stop     Stop only the emulator on port 5554.
@@ -265,23 +266,28 @@ start_emulator() {
     wait_for_boot "$GOLF_EMULATOR_SERIAL"
 }
 
-build_app() {
-    note "Building production R8 APK..."
+build_apps() {
+    note "Building production launcher and radio APKs..."
     # API 30 is required by this device; skip only Play's expired-target lint check.
-    gradle :launcher-app:assembleRelease -x lintVitalRelease
-    [[ -f "$GOLF_APK" ]] || die "Build completed without producing $GOLF_APK"
-    note "Production APK ready: $GOLF_APK"
+    gradle :launcher-app:assembleRelease :radio-app:assembleRelease -x lintVitalRelease
+    [[ -f "$GOLF_LAUNCHER_APK" ]] ||
+        die "Build completed without producing $GOLF_LAUNCHER_APK"
+    [[ -f "$GOLF_RADIO_APK" ]] ||
+        die "Build completed without producing $GOLF_RADIO_APK"
+    note "Launcher APK ready: $GOLF_LAUNCHER_APK"
+    note "Radio APK ready: $GOLF_RADIO_APK"
 }
 
 install_app() {
     local golf_serial="${1:-$GOLF_EMULATOR_SERIAL}"
     ensure_sdk
-    build_app
+    build_apps
     [[ "$(adb_for "$golf_serial" get-state 2>/dev/null || true)" == "device" ]] ||
         die "ADB device is not available: $golf_serial"
 
-    note "Installing production APK on $golf_serial..."
-    adb_for "$golf_serial" install -r "$GOLF_APK"
+    note "Installing launcher and radio APKs on $golf_serial..."
+    adb_for "$golf_serial" install -r "$GOLF_LAUNCHER_APK"
+    adb_for "$golf_serial" install -r "$GOLF_RADIO_APK"
 }
 
 launch_app() {
@@ -317,7 +323,6 @@ test_app() {
         :launcher-app:connectedDebugAndroidTest
 
     # Android's connected-test runner removes the tested APK when it finishes.
-    build_app
     install_app "$GOLF_EMULATOR_SERIAL"
     launch_app "$GOLF_EMULATOR_SERIAL"
     note "Tests passed and the launcher has been restored."
@@ -343,7 +348,8 @@ doctor() {
     fi
     printf 'SDK:      %s\n' "$([[ -x "$GOLF_SDKMANAGER" ]] && printf ready || printf missing)"
     printf 'Emulator: %s\n' "$([[ -x "$GOLF_EMULATOR" ]] && printf ready || printf missing)"
-    printf 'APK:      %s\n' "$([[ -f "$GOLF_APK" ]] && printf '%s' "$GOLF_APK" || printf 'not built')"
+    printf 'Launcher: %s\n' "$([[ -f "$GOLF_LAUNCHER_APK" ]] && printf '%s' "$GOLF_LAUNCHER_APK" || printf 'not built')"
+    printf 'Radio:    %s\n' "$([[ -f "$GOLF_RADIO_APK" ]] && printf '%s' "$GOLF_RADIO_APK" || printf 'not built')"
     if [[ -x "$GOLF_EMULATOR" ]]; then
         "$GOLF_EMULATOR" -accel-check || true
     fi
@@ -361,7 +367,7 @@ main() {
             setup
             ;;
         build)
-            build_app
+            build_apps
             ;;
         start)
             shift

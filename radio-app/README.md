@@ -14,9 +14,11 @@ observed in GalaRadio:
 It listens for `xy.update.freq` and displays the integer extra named `freq`.
 The OEM application remains installed as the protected tuner and audio backend.
 
-Version 0.3 starts that OEM service immediately when the Radio screen opens,
-so the tuner/audio source is selected even before the first seek or preset
-command. It also uses larger, high-contrast controls sized for a 1024×600
+Version 0.4 stores the current station and presets synchronously, restores the
+last frequency at startup, and retries tuning while the OEM service is still
+initializing. On a first run with no saved frequency it performs one forward
+seek, the verified QC4250 command that activates the tuner and audio path. It
+also uses larger, high-contrast controls sized for a 1024×600
 in-car display. It includes an instrument-cluster-inspired Golf V interface,
 eight local presets (tap to recall, long press to store), a tuning scale, and the RDS
 Program Service name. GalaRadio does not broadcast the RDS PS field, so this

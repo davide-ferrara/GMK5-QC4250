@@ -15,7 +15,8 @@ interactively. Java 17 or newer, `curl`, and `unzip` must already be installed.
 
 ## Daily workflow
 
-Start the graphical 1024×600 emulator, compile, install, and open the launcher:
+Start the graphical 1024×600 emulator, compile and install both apps, and open
+the launcher:
 
 ```sh
 make run
@@ -65,8 +66,9 @@ The following directories are ignored by version control:
 - `.runtime/`
 - `local.properties`
 
-The production APK is generated at:
+The production APKs are generated at:
 
 ```text
 launcher-app/build/outputs/apk/release/launcher-app-release.apk
+radio-app/build/outputs/apk/release/radio-app-release.apk
 ```

@@ -10,11 +10,11 @@ help:
 		'Golf Mk5 launcher' \
 		'' \
 		'  make setup                     Install the local Android toolchain' \
-		'  make run                       Build, install, and launch the production app' \
-		'  make build                     Compile the production R8 APK' \
+		'  make run                       Build/install both apps, then launch the launcher' \
+		'  make build                     Compile the launcher and radio release APKs' \
 		'  make start [HEADLESS=1]        Start the Android emulator' \
 		'  make test                      Run UI tests and restore the production app' \
-		'  make install DEVICE=<serial>   Build and install on an ADB device' \
+		'  make install DEVICE=<serial>   Build and install both apps on an ADB device' \
 		'  make launch DEVICE=<serial>    Launch on one ADB device' \
 		'  make set-home DEVICE=<serial>  Select it as default HOME' \
 		'  make stop                      Stop the local emulator' \

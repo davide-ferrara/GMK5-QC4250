@@ -15,6 +15,7 @@
     <string name="oem_service_unavailable">Servizio radio OEM non accessibile</string>
     <string name="frequency_unavailable">Frequenza non ancora disponibile</string>
     <string name="preset_saved">Stazione salvata sul tasto %1$d</string>
+    <string name="preset_save_failed">Impossibile salvare la stazione</string>
     <string name="save_preset_here">Tieni premuto per salvare qui</string>
     <string name="rds_permission_required">RDS richiede il permesso diagnostico ADB</string>
     <string name="rds_unavailable">Nome RDS non disponibile</string>

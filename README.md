@@ -51,7 +51,8 @@ make setup
 ```
 
 Review and accept the Android SDK licenses when prompted. After setup,
-`make run` builds and runs the production launcher in the configured emulator.
+`make run` builds and installs the launcher and radio app, then opens the
+production launcher in the configured emulator.
 Internet access is needed for the initial SDK and Gradle downloads.
 
 The emulator uses KVM acceleration when `/dev/kvm` is available and falls back
@@ -88,8 +89,8 @@ Install the local Android toolchain and create the emulator once:
 make setup
 ```
 
-For the normal development loop, start the emulator, compile the APK, install
-it, and launch the application with:
+For the normal development loop, start the emulator, compile and install both
+apps, and launch the launcher with:
 
 ```sh
 make run
@@ -99,10 +100,10 @@ The individual operations are also available:
 
 ```sh
 make start       # Open the graphical Android emulator
-make build       # Compile the production R8 APK
-make run         # Build, install, and launch on the emulator
+make build       # Compile the launcher and radio release APKs
+make run         # Build/install both apps and launch the launcher
 make test        # Run the Compose UI tests and restore the production app
-make install DEVICE=SERIAL # Build and install on a device
+make install DEVICE=SERIAL # Build and install both apps on a device
 make launch DEVICE=SERIAL  # Launch the installed app
 make set-home DEVICE=SERIAL # Optional: select it as HOME
 make stop        # Stop the emulator
@@ -110,12 +111,13 @@ make doctor      # Check Java, SDK, KVM, APK, and connected ADB devices
 make help        # Show every available command
 ```
 
-There is one launcher package, **Golf Mk5** (`com.golfv.launcher`). Every
-normal command builds the R8-minified production APK, signed with the local key
-used by the tablet:
+The production packages are **Golf Mk5** (`com.golfv.launcher`) and **Golf
+Radio** (`com.golfv.radio`). Normal build and install commands include both
+release APKs, signed with the local key used by the tablet:
 
 ```text
 launcher-app/build/outputs/apk/release/launcher-app-release.apk
+radio-app/build/outputs/apk/release/radio-app-release.apk
 ```
 
 `make install` always rebuilds before installing. The animated car video is
