@@ -1,7 +1,7 @@
 # Idee per il launcher
 
 Queste proposte partono esclusivamente dai segnali CAN già verificati su questa
-Golf Mk5 / QC4250: velocità, quattro sportelli, freno a mano, luci esterne e
+Golf Mk5 / QC4250: velocità, quattro sportelli, stato quadro, luci esterne e
 retromarcia. Il launcher deve restare sempre in sola lettura e non interferire
 con retrocamera, MCU o servizi OEM.
 
@@ -49,9 +49,9 @@ con retrocamera, MCU o servizi OEM.
 ## Stati utili da mostrare
 
 - Aggiungere alla pagina Info una diagnostica compatta: velocità CAN ricevuta,
-  stato dei quattro sportelli, luci e freno a mano.
-- Mostrare nel render un indicatore discreto del freno a mano inserito quando
-  l'auto è ferma; non trasformarlo in un avviso di sicurezza o in un comando.
+  stato dei quattro sportelli, cofano, luci e quadro.
+- Mostrare nel render un indicatore discreto di quadro acceso; non trasformarlo
+  in un avviso di sicurezza o in un comando.
 - Usare lo stato luci per scegliere render diurno/notturno e per attenuare
   leggermente lo sfondo, senza affidarsi all'orario.
 - Quando una porta è aperta, evidenziarla sul render e mostrare il suo numero
@@ -73,7 +73,7 @@ con retrocamera, MCU o servizi OEM.
 ## Affidabilità e prove
 
 - Definire una tabella di test manuale per ogni variante visiva: tutte le
-  porte, luci on/off, freno a mano e passaggio fermo/in movimento.
+  porte, cofano, luci on/off, quadro acceso/spento e passaggio fermo/in movimento.
 - Se un callback CAN scompare o un frame è sconosciuto, mantenere il render
   normale e l'app utilizzabile; mai bloccare HOME o tentare una ritrasmissione.
 - Tenere aggiornata [CANBUS.md](./CANBUS.md) con frame, scala, test svolto e

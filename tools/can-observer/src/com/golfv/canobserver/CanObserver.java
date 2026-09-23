@@ -70,6 +70,7 @@ public final class CanObserver {
                 System.out.printf(Locale.ROOT,
                         "%s elapsed=%d type=backcar state=%d%n",
                         Instant.now(), SystemClock.elapsedRealtime(), state);
+                System.out.flush();
                 reply.writeNoException();
                 return true;
             }
@@ -102,6 +103,7 @@ public final class CanObserver {
                 System.out.printf(Locale.ROOT,
                         "%s elapsed=%d type=car-event data=%s%n",
                         Instant.now(), SystemClock.elapsedRealtime(), formatInts(values));
+                System.out.flush();
                 reply.writeNoException();
                 return true;
             }
@@ -140,6 +142,7 @@ public final class CanObserver {
         System.out.printf(Locale.ROOT,
                 "%s elapsed=%d type=frame declared=%d available=%d data=%s%n",
                 Instant.now(), SystemClock.elapsedRealtime(), declaredSize, available, hex);
+        System.out.flush();
     }
 
     private static IBinder getService(String name) throws Exception {

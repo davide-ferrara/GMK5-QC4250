@@ -85,6 +85,7 @@ Also keep all core AOSP infrastructure (do not disable): `android`,
 
 | Name | Package | Status | Notes |
 |---|---|---|---|
+| OEM door-status overlay | `com.kyhero.car.myhost` | Overlay blocked for user 0 | The visible 200×245 `APPLICATION_OVERLAY` with the top-down car and open-door state belongs to the critical CanBus package. The package was deliberately kept enabled; its `SYSTEM_ALERT_WINDOW` AppOp is set to `ignore`, which removes only its overlay and preserves the active CanBus services. Restore with `adb shell appops set --user 0 com.kyhero.car.myhost SYSTEM_ALERT_WINDOW allow`. |
 | Voice robot overlay | `com.txznet.txz` | Disabled for user 0 | The robot disappeared. Re-enable with `adb shell pm enable --user 0 com.txznet.txz`. |
 | OEM music / GalaMusic | `com.acloud.stub.localmusic` | Disabled for user 0 | MEDIA no longer launches the unwanted bundled music; verified by owner. The two tracks under `/system/media/insidefiles/` were left untouched. Re-enable with `adb shell pm enable --user 0 com.acloud.stub.localmusic`. |
 | PODOFO Voice | *to confirm* | Disabled by owner (not removed) | Exact package ID still to confirm on the device. |
@@ -167,6 +168,16 @@ unless logs prove otherwise.
 3. Disable **one only**:
    ```sh
    adb shell pm disable-user --user 0 <pkg>
+   ```
+   For an unwanted `APPLICATION_OVERLAY` from a package that must remain
+   active (such as the CanBus provider), block only that package's overlay
+   permission instead:
+   ```sh
+   adb shell appops set --user 0 <pkg> SYSTEM_ALERT_WINDOW ignore
+   ```
+   Restore the overlay with:
+   ```sh
+   adb shell appops set --user 0 <pkg> SYSTEM_ALERT_WINDOW allow
    ```
 4. Verify immediately: ignition, reverse camera, volume, CAN, launcher, Android
    Auto.

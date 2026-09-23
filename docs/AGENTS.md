@@ -26,6 +26,7 @@ except for the explicitly documented, reversible per-user disable tests below.
 | Engineering / parameter UI | `com.xygala.pvcanset/.Main` | `/odmdir/system/app/PvCanset/PvCanset.apk` | Implements “Parameter Settings - V1.0.2” and rows 701–714. Confirmed in foreground via ADB. |
 | Android Settings | `com.android.settings` | `/odmdir/system_ext/priv-app/Settings/Settings.apk` | System settings and developer options. |
 | Voice robot overlay | `com.txznet.txz` | `/vendor/app/WakeUp/WakeUp.apk` | Disabling this package for user 0 made the robot overlay disappear. It can be re-enabled. |
+| OEM door-status overlay | `com.kyhero.car.myhost` | `/odmdir/system/app/CanBus/CanBus.apk` | The centered 200×245 top-down vehicle/open-door `APPLICATION_OVERLAY` is owned by this CanBus package. It is blocked persistently for user 0 with `appops set --user 0 com.kyhero.car.myhost SYSTEM_ALERT_WINDOW ignore`; the package and its CanBus services remain enabled. Restore with `appops set --user 0 com.kyhero.car.myhost SYSTEM_ALERT_WINDOW allow`. |
 | Voice/vehicle adapter | `com.txznet.smartadapter` | `/vendor/app/TXZO/TXZO.apk` | Receives voice, ACC, backcar, media-source, and weather-view events; treat as vehicle-integrated. |
 | Voice assistant companion | `com.txznet.aipal` | `/vendor/app/TXZAIPal/TXZAIPal.apk` | TXZ companion app. |
 | TXZ weather | `com.txznet.weather` | `/vendor/app/TXZWeather/TXZWeather.apk` | TXZ weather component. |

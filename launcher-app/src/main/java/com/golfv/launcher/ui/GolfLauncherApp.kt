@@ -103,10 +103,10 @@ private enum class LightsPreview(val label: Int) {
     Off(R.string.lights_preview_off),
 }
 
-private enum class ParkingBrakePreview(val label: Int) {
-    Automatic(R.string.parking_brake_preview_auto),
-    Applied(R.string.parking_brake_preview_applied),
-    Released(R.string.parking_brake_preview_released),
+private enum class IgnitionPreview(val label: Int) {
+    Automatic(R.string.ignition_preview_auto),
+    On(R.string.ignition_preview_on),
+    Off(R.string.ignition_preview_off),
 }
 
 private enum class HomePreview(val label: Int) {
@@ -130,7 +130,7 @@ fun GolfLauncherApp(
     doors: StateFlow<DoorStates?>,
     vehicleSpeedKph: StateFlow<Float>,
     lastVehicleSpeedKph: StateFlow<Float?>,
-    parkingBrakeApplied: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
+    ignitionOn: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
     onSplashFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
@@ -143,12 +143,12 @@ fun GolfLauncherApp(
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
     val exteriorLightsState by exteriorLights.collectAsState()
     val doorStates by doors.collectAsState()
-    val parkingBrakeIsApplied by parkingBrakeApplied.collectAsState()
+    val ignitionIsOn by ignitionOn.collectAsState()
     val speedKph by vehicleSpeedKph.collectAsState()
     val lastSpeedKph by lastVehicleSpeedKph.collectAsState()
     // Visual override only; never change the CAN state or persist a test mode.
     var lightsPreview by remember { mutableStateOf(LightsPreview.Automatic) }
-    var parkingBrakePreview by remember { mutableStateOf(ParkingBrakePreview.Automatic) }
+    var ignitionPreview by remember { mutableStateOf(IgnitionPreview.Automatic) }
     var doorsPreview by remember { mutableStateOf<Int?>(null) }
     var homePreview by remember { mutableStateOf(HomePreview.Automatic) }
     val doorMask = doorsPreview ?: (doorStates?.renderMask ?: 0)
@@ -162,10 +162,10 @@ fun GolfLauncherApp(
         LightsPreview.On -> ExteriorLightsState.On
         LightsPreview.Off -> ExteriorLightsState.Off
     }
-    val indicatorParkingBrakeApplied = when (parkingBrakePreview) {
-        ParkingBrakePreview.Automatic -> parkingBrakeIsApplied
-        ParkingBrakePreview.Applied -> true
-        ParkingBrakePreview.Released -> false
+    val indicatorIgnitionOn = when (ignitionPreview) {
+        IgnitionPreview.Automatic -> ignitionIsOn
+        IgnitionPreview.On -> true
+        IgnitionPreview.Off -> false
     }
 
     GolfLauncherTheme(accentTheme) {
@@ -190,7 +190,7 @@ fun GolfLauncherApp(
                 speedKph = speedKph,
                 lightsOn = lightsOn,
                 lightsState = indicatorLightsState,
-                parkingBrakeApplied = indicatorParkingBrakeApplied,
+                ignitionOn = indicatorIgnitionOn,
                 doorMask = doorMask,
                 forceTopView = doorsPreview != null,
                 homePreview = homePreview,
@@ -215,8 +215,8 @@ fun GolfLauncherApp(
                     onHomePreviewChange = { homePreview = it },
                     lightsPreview = lightsPreview,
                     onLightsPreviewChange = { lightsPreview = it },
-                    parkingBrakePreview = parkingBrakePreview,
-                    onParkingBrakePreviewChange = { parkingBrakePreview = it },
+                    ignitionPreview = ignitionPreview,
+                    onIgnitionPreviewChange = { ignitionPreview = it },
                     doorsPreview = doorsPreview,
                     onDoorsPreviewChange = {
                         doorsPreview = it
@@ -266,7 +266,7 @@ private fun HomeScreen(
     speedKph: Float,
     lightsOn: Boolean,
     lightsState: ExteriorLightsState,
-    parkingBrakeApplied: Boolean?,
+    ignitionOn: Boolean?,
     doorMask: Int,
     forceTopView: Boolean,
     homePreview: HomePreview,
@@ -308,7 +308,7 @@ private fun HomeScreen(
                 )
                 VehicleSignalIndicators(
                     lightsState = lightsState,
-                    parkingBrakeApplied = parkingBrakeApplied,
+                    ignitionOn = ignitionOn,
                 )
             }
         }
@@ -339,7 +339,7 @@ private fun HomeScreen(
 @Composable
 private fun VehicleSignalIndicators(
     lightsState: ExteriorLightsState,
-    parkingBrakeApplied: Boolean?,
+    ignitionOn: Boolean?,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -359,17 +359,17 @@ private fun VehicleSignalIndicators(
             testTag = "lightsStatusIndicator",
         )
         VehicleSignalIndicator(
-            icon = R.drawable.ic_parking_brake_indicator,
+            icon = R.drawable.ic_ignition_indicator,
             description = stringResource(
-                when (parkingBrakeApplied) {
-                    true -> R.string.indicator_parking_brake_applied
-                    false -> R.string.indicator_parking_brake_released
-                    null -> R.string.indicator_parking_brake_waiting
+                when (ignitionOn) {
+                    true -> R.string.indicator_ignition_on
+                    false -> R.string.indicator_ignition_off
+                    null -> R.string.indicator_ignition_waiting
                 },
             ),
-            active = parkingBrakeApplied == true,
-            activeColor = Color(0xFFFF625D),
-            testTag = "parkingBrakeStatusIndicator",
+            active = ignitionOn == true,
+            activeColor = Color(0xFFFFC247),
+            testTag = "ignitionStatusIndicator",
         )
     }
 }
@@ -735,8 +735,8 @@ private fun ProjectInfoScreen(
     onHomePreviewChange: (HomePreview) -> Unit,
     lightsPreview: LightsPreview,
     onLightsPreviewChange: (LightsPreview) -> Unit,
-    parkingBrakePreview: ParkingBrakePreview,
-    onParkingBrakePreviewChange: (ParkingBrakePreview) -> Unit,
+    ignitionPreview: IgnitionPreview,
+    onIgnitionPreviewChange: (IgnitionPreview) -> Unit,
     doorsPreview: Int?,
     onDoorsPreviewChange: (Int?) -> Unit,
     onAccentThemeChange: (AccentTheme) -> Unit,
@@ -809,6 +809,15 @@ private fun ProjectInfoScreen(
                 valueColor = if (doorStates?.tailgateOpen == true) Color(0xFFF1B75B) else Color(0xFF8D9AA7),
             )
             InfoRow(
+                label = stringResource(R.string.hood_label),
+                value = stringResource(when (doorStates?.hoodOpen) {
+                    true -> R.string.hood_open
+                    false -> R.string.hood_closed
+                    null -> R.string.hood_can_pending
+                }),
+                valueColor = if (doorStates?.hoodOpen == true) Color(0xFFF1B75B) else Color(0xFF8D9AA7),
+            )
+            InfoRow(
                 label = stringResource(R.string.can_speed_label),
                 value = lastSpeedKph.label(context),
                 valueColor = if (lastSpeedKph == null) Color(0xFF8D9AA7) else Color.White,
@@ -857,22 +866,22 @@ private fun ProjectInfoScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                stringResource(R.string.parking_brake_preview_label),
+                stringResource(R.string.ignition_preview_label),
                 color = Color(0xFF8D9AA7),
                 fontSize = 18.sp,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ParkingBrakePreview.entries.forEach { mode ->
+                IgnitionPreview.entries.forEach { mode ->
                     FilterChip(
-                        selected = parkingBrakePreview == mode,
-                        onClick = { onParkingBrakePreviewChange(mode) },
+                        selected = ignitionPreview == mode,
+                        onClick = { onIgnitionPreviewChange(mode) },
                         label = { Text(stringResource(mode.label)) },
-                        modifier = Modifier.testTag("parkingBrakePreview${mode.name}"),
+                        modifier = Modifier.testTag("ignitionPreview${mode.name}"),
                     )
                 }
             }
             Text(
-                stringResource(R.string.parking_brake_preview_hint),
+                stringResource(R.string.ignition_preview_hint),
                 color = Color(0xFF8D9AA7),
                 fontSize = 14.sp,
             )
@@ -1102,6 +1111,7 @@ private fun DoorStates?.label(context: Context): String = when {
             "3".takeIf { door3RearDriver },
             "4".takeIf { door4RearPassenger },
             context.getString(R.string.tailgate_label).takeIf { tailgateOpen == true },
+            context.getString(R.string.hood_label).takeIf { hoodOpen == true },
         ).joinToString(", "),
     )
 }

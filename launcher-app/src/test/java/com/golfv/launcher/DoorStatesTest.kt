@@ -8,13 +8,34 @@ import org.junit.Test
 
 class DoorStatesTest {
     @Test
-    fun unverifiedTailgateAndParkingBrakeBitsNeverOpenTheTailgate() {
+    fun keepsTheTailgateUnverifiedForEveryKnownDoorStatus() {
         for (status in listOf(0x00, 0x10, 0x20, 0x30, 0xA0)) {
             val state = VehicleSignals.doorStatesFromFrame(frame(status), 10)!!
             assertNull(state.tailgateOpen)
-            assertFalse(state.hasOpenDoor)
-            assertEquals(0, state.renderMask)
         }
+    }
+
+    @Test
+    fun decodesTheUserVerifiedHoodBitWithoutChangingTheDoorBitset() {
+        val closed = VehicleSignals.doorStatesFromFrame(frame(0x22), 10)!!
+        val open = VehicleSignals.doorStatesFromFrame(frame(0x32), 10)!!
+
+        assertFalse(closed.hoodOpen!!)
+        assertTrue(open.hoodOpen!!)
+        assertEquals(closed.door1Driver, open.door1Driver)
+        assertEquals(closed.door2FrontPassenger, open.door2FrontPassenger)
+        assertEquals(closed.door3RearDriver, open.door3RearDriver)
+        assertEquals(closed.door4RearPassenger, open.door4RearPassenger)
+        assertFalse(VehicleSignals.doorStatesFromFrame(frame(0x20), 10)!!.hoodOpen!!)
+    }
+
+    @Test
+    fun decodesTheUserConfirmedIgnitionBit() {
+        assertFalse(VehicleSignals.ignitionOnFromFrame(frame(0x00), 10)!!)
+        assertFalse(VehicleSignals.ignitionOnFromFrame(frame(0x10), 10)!!)
+        assertTrue(VehicleSignals.ignitionOnFromFrame(frame(0x20), 10)!!)
+        assertTrue(VehicleSignals.ignitionOnFromFrame(frame(0x30), 10)!!)
+        assertNull(VehicleSignals.ignitionOnFromFrame(frame(0x20), 9))
     }
 
     @Test

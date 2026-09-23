@@ -270,6 +270,13 @@ build_apps() {
     note "Building production launcher and radio APKs..."
     # API 30 is required by this device; skip only Play's expired-target lint check.
     gradle :launcher-app:assembleRelease :radio-app:assembleRelease -x lintVitalRelease
+    if [[ ! -f "$GOLF_LAUNCHER_APK" || ! -f "$GOLF_RADIO_APK" ]]; then
+        # Gradle's configuration cache can retain an interrupted packaging task
+        # as up-to-date even when its APK was never written. Retry the two
+        # release tasks without that task cache before reporting a real error.
+        note "Release APK missing after cached build; forcing APK packaging..."
+        gradle --rerun-tasks :launcher-app:assembleRelease :radio-app:assembleRelease -x lintVitalRelease
+    fi
     [[ -f "$GOLF_LAUNCHER_APK" ]] ||
         die "Build completed without producing $GOLF_LAUNCHER_APK"
     [[ -f "$GOLF_RADIO_APK" ]] ||

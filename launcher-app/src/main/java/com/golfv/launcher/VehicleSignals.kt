@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal const val FORWARD_SPEED_DISPLAY_THRESHOLD_KPH = 0.5f
+private const val HOOD_OPEN_BIT = 0x10
 
 /** Ignore reverse and sub-0.5 km/h stationary noise from the OEM CAN bridge. */
 internal fun shouldDisplayForwardSpeed(speedKph: Float): Boolean =
@@ -37,8 +38,8 @@ class VehicleSignals(context: Context) {
     val exteriorLights: StateFlow<ExteriorLightsState> = _exteriorLights.asStateFlow()
     private val _doors = MutableStateFlow<DoorStates?>(null)
     val doors: StateFlow<DoorStates?> = _doors.asStateFlow()
-    private val _parkingBrakeApplied = MutableStateFlow<Boolean?>(null)
-    val parkingBrakeApplied: StateFlow<Boolean?> = _parkingBrakeApplied.asStateFlow()
+    private val _ignitionOn = MutableStateFlow<Boolean?>(null)
+    val ignitionOn: StateFlow<Boolean?> = _ignitionOn.asStateFlow()
     private val _vehicleSpeedKph = MutableStateFlow(0f)
     val vehicleSpeedKph: StateFlow<Float> = _vehicleSpeedKph.asStateFlow()
     private val _lastVehicleSpeedKph = MutableStateFlow<Float?>(null)
@@ -76,8 +77,8 @@ class VehicleSignals(context: Context) {
             data.enforceInterface(CANBUS_CALLBACK_DESCRIPTOR)
             val frame = data.createByteArray()
             val declaredSize = data.readInt()
-            doorStatesFromFrame(frame, declaredSize)?.let { _doors.value = it }
-            parkingBrakeAppliedFromFrame(frame, declaredSize)?.let { _parkingBrakeApplied.value = it }
+            doorStatesFromFrame(frame, declaredSize)?.let(::updateRawDoorStates)
+            ignitionOnFromFrame(frame, declaredSize)?.let { _ignitionOn.value = it }
             vehicleSpeedKphFromFrame(frame, declaredSize)?.let(::updateVehicleSpeed)
             reply?.writeNoException()
             return true
@@ -198,6 +199,10 @@ class VehicleSignals(context: Context) {
         }
     }
 
+    private fun updateRawDoorStates(rawDoors: DoorStates) {
+        _doors.value = rawDoors
+    }
+
     @Throws(RemoteException::class)
     private fun transactCanbus(service: IBinder, transaction: Int, callback: IBinder) {
         val data = Parcel.obtain()
@@ -229,12 +234,13 @@ class VehicleSignals(context: Context) {
         private const val CANBUS_CALLBACK_ON_RESULT = 1
         private const val CANBUS_RETRY_AFTER_MS = 2_000L
         private const val SPEED_STALE_AFTER_MS = 1_500L
-        private const val PARKING_BRAKE_BIT = 0x20
+        private const val IGNITION_ON_BIT = 0x20
 
         /**
          * Decodes the verified door-status frame, `2E 41 06 01 SS ...`.
-         * The lower nibble of SS is the four-door open bitset; other status
-         * bits (such as the short-lived 0xA0 close transition) are ignored.
+         * The lower nibble of SS is the four-door open bitset and bit 0x10 is
+         * the hood. Other status bits (such as the short-lived 0xA0 close
+         * transition) are ignored.
          */
         internal fun doorStatesFromFrame(frame: ByteArray?, declaredSize: Int): DoorStates? {
             if (!isDoorStatusFrame(frame, declaredSize)) return null
@@ -243,11 +249,11 @@ class VehicleSignals(context: Context) {
             return DoorStates.fromStatusByte(statusByte)
         }
 
-        /** Reads the verified parking-brake bit from `2E 41 06 01 SS ...`. */
-        internal fun parkingBrakeAppliedFromFrame(frame: ByteArray?, declaredSize: Int): Boolean? {
+        /** Reads the user-confirmed ignition/key-on bit from `2E 41 06 01 SS ...`. */
+        internal fun ignitionOnFromFrame(frame: ByteArray?, declaredSize: Int): Boolean? {
             if (!isDoorStatusFrame(frame, declaredSize)) return null
             val statusByte = frame?.getOrNull(4)?.unsigned() ?: return null
-            return statusByte and PARKING_BRAKE_BIT != 0
+            return statusByte and IGNITION_ON_BIT != 0
         }
 
         private fun isDoorStatusFrame(frame: ByteArray?, declaredSize: Int): Boolean {
@@ -271,13 +277,14 @@ class VehicleSignals(context: Context) {
     }
 }
 
-/** Four verified CAN doors and an optional tailgate state, pending calibration. */
+/** Four verified CAN doors and hood; tailgate remains uncalibrated. */
 data class DoorStates(
     val door1Driver: Boolean,
     val door2FrontPassenger: Boolean,
     val door3RearDriver: Boolean,
     val door4RearPassenger: Boolean,
     val tailgateOpen: Boolean? = null,
+    val hoodOpen: Boolean? = null,
 ) {
     /** Render-only bits 1,2,4,8,16: four doors + tailgate; NOT the raw CAN byte. */
     val renderMask: Int
@@ -288,7 +295,8 @@ data class DoorStates(
             (if (tailgateOpen == true) 16 else 0)
 
     val hasOpenDoor: Boolean
-        get() = door1Driver || door2FrontPassenger || door3RearDriver || door4RearPassenger || tailgateOpen == true
+        get() = door1Driver || door2FrontPassenger || door3RearDriver || door4RearPassenger ||
+            tailgateOpen == true || hoodOpen == true
 
     companion object {
         fun fromStatusByte(status: Int) = DoorStates(
@@ -296,12 +304,9 @@ data class DoorStates(
             door2FrontPassenger = status and 0x02 != 0,
             door3RearDriver = status and 0x04 != 0,
             door4RearPassenger = status and 0x08 != 0,
-            // TODO(vehicle verification): candidate tailgate flag is SS & 0x10
-            // in 2E 41 06 01 SS ... (e.g. 0x20 -> 0x30 with parking brake).
-            // This is a hypothesis, not a decoded signal. 0x20 is the verified
-            // parking brake, not another door. Compare repeated open/close
-            // captures before replacing null with a calibrated decoder.
+            // No raw tailgate bit has been calibrated on this vehicle.
             tailgateOpen = null,
+            hoodOpen = status and HOOD_OPEN_BIT != 0,
         )
     }
 }
