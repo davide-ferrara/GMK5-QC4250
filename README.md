@@ -2,7 +2,17 @@
 
 Reverse-engineering notes for the Android head unit in a Volkswagen Golf Mk5.
 
-![Golf Mk5 launcher running in the emulator](./screenshots/launcher-emulator.png)
+## Emulator screenshots
+
+Captured on the 1024×600 Android 11 emulator. The light and door states use the
+launcher's visual preview controls. The radio screen shows a simulated
+101.7 MHz update because the emulator does not provide the OEM tuner or RDS.
+
+| Launcher · headlights off | Launcher · headlights on |
+| --- | --- |
+| ![Launcher with headlights off](./screenshots/launcher-emulator.png) | ![Launcher with headlights on](./screenshots/launcher-lights-on.png) |
+| All four doors open · tailgate closed | Radio · simulated 101.7 MHz |
+| ![Golf with all four doors open](./screenshots/launcher-doors-open.png) | ![Radio interface with simulated 101.7 MHz](./screenshots/radio-emulator.png) |
 
 ## Passwords
 
