@@ -93,6 +93,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
@@ -131,6 +132,7 @@ fun GolfLauncherApp(
     vehicleSpeedKph: StateFlow<Float>,
     lastVehicleSpeedKph: StateFlow<Float?>,
     parkingBrakeApplied: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
+    ignitionOn: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
     onSplashFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
@@ -144,6 +146,7 @@ fun GolfLauncherApp(
     val exteriorLightsState by exteriorLights.collectAsState()
     val doorStates by doors.collectAsState()
     val parkingBrakeIsApplied by parkingBrakeApplied.collectAsState()
+    val ignitionIsOn by ignitionOn.collectAsState()
     val speedKph by vehicleSpeedKph.collectAsState()
     val lastSpeedKph by lastVehicleSpeedKph.collectAsState()
     // Visual override only; never change the CAN state or persist a test mode.
@@ -191,6 +194,7 @@ fun GolfLauncherApp(
                 lightsOn = lightsOn,
                 lightsState = indicatorLightsState,
                 parkingBrakeApplied = indicatorParkingBrakeApplied,
+                ignitionOn = ignitionIsOn,
                 doorMask = doorMask,
                 forceTopView = doorsPreview != null,
                 homePreview = homePreview,
@@ -267,6 +271,7 @@ private fun HomeScreen(
     lightsOn: Boolean,
     lightsState: ExteriorLightsState,
     parkingBrakeApplied: Boolean?,
+    ignitionOn: Boolean?,
     doorMask: Int,
     forceTopView: Boolean,
     homePreview: HomePreview,
@@ -307,6 +312,7 @@ private fun HomeScreen(
                     onOpenApps = onOpenApps,
                 )
                 VehicleSignalIndicators(
+                    ignitionOn = ignitionOn,
                     parkingBrakeApplied = parkingBrakeApplied,
                     lightsState = lightsState,
                 )
@@ -338,6 +344,7 @@ private fun HomeScreen(
 
 @Composable
 private fun VehicleSignalIndicators(
+    ignitionOn: Boolean?,
     parkingBrakeApplied: Boolean?,
     lightsState: ExteriorLightsState,
 ) {
@@ -347,8 +354,14 @@ private fun VehicleSignalIndicators(
     ) {
         VehicleSignalIndicator(
             icon = R.drawable.ic_ignition_indicator,
-            description = stringResource(R.string.indicator_ignition_waiting),
-            active = false,
+            description = stringResource(
+                when (ignitionOn) {
+                    true -> R.string.indicator_ignition_on
+                    false -> R.string.indicator_ignition_off
+                    null -> R.string.indicator_ignition_waiting
+                },
+            ),
+            active = ignitionOn == true,
             activeColor = Color(0xFFFFC247),
             testTag = "ignitionStatusIndicator",
         )
@@ -425,7 +438,7 @@ private fun CarBackground(
         HomePreview.Speed -> true
         HomePreview.Golf -> false
     }
-    val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else speedKph
+    val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else abs(speedKph)
     var videoFailed by remember { mutableStateOf(false) }
     var introComplete by remember { mutableStateOf(false) }
     val replayInteractionSource = remember { MutableInteractionSource() }

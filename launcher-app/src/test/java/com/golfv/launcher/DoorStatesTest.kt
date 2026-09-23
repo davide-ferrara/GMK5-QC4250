@@ -8,25 +8,25 @@ import org.junit.Test
 
 class DoorStatesTest {
     @Test
-    fun keepsTheTailgateUnverifiedForEveryKnownDoorStatus() {
+    fun keepsTheFrontHoodUnverifiedForEveryKnownDoorStatus() {
         for (status in listOf(0x00, 0x10, 0x20, 0x30, 0xA0)) {
             val state = VehicleSignals.doorStatesFromFrame(frame(status), 10)!!
-            assertNull(state.tailgateOpen)
+            assertNull(state.hoodOpen)
         }
     }
 
     @Test
-    fun decodesTheUserVerifiedHoodBitWithoutChangingTheDoorBitset() {
+    fun decodesTheUserVerifiedTailgateBitWithoutChangingTheDoorBitset() {
         val closed = VehicleSignals.doorStatesFromFrame(frame(0x22), 10)!!
         val open = VehicleSignals.doorStatesFromFrame(frame(0x32), 10)!!
 
-        assertFalse(closed.hoodOpen!!)
-        assertTrue(open.hoodOpen!!)
+        assertFalse(closed.tailgateOpen!!)
+        assertTrue(open.tailgateOpen!!)
         assertEquals(closed.door1Driver, open.door1Driver)
         assertEquals(closed.door2FrontPassenger, open.door2FrontPassenger)
         assertEquals(closed.door3RearDriver, open.door3RearDriver)
         assertEquals(closed.door4RearPassenger, open.door4RearPassenger)
-        assertFalse(VehicleSignals.doorStatesFromFrame(frame(0x20), 10)!!.hoodOpen!!)
+        assertFalse(VehicleSignals.doorStatesFromFrame(frame(0x20), 10)!!.tailgateOpen!!)
     }
 
     @Test
@@ -37,6 +37,15 @@ class DoorStatesTest {
         assertTrue(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x22), 10)!!)
         assertTrue(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x30), 10)!!)
         assertNull(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x20), 9))
+    }
+
+    @Test
+    fun decodesTheUserConfirmedIgnitionFrames() {
+        assertTrue(VehicleSignals.ignitionOnFromFrame(ignitionFrame(0x40), 6)!!)
+        assertFalse(VehicleSignals.ignitionOnFromFrame(ignitionFrame(0x00), 6)!!)
+        assertNull(VehicleSignals.ignitionOnFromFrame(ignitionFrame(0x20), 6))
+        assertNull(VehicleSignals.ignitionOnFromFrame(ignitionFrame(0x40), 5))
+        assertNull(VehicleSignals.ignitionOnFromFrame(frame(0x40), 10))
     }
 
     @Test
@@ -60,10 +69,10 @@ class DoorStatesTest {
         val door4 = frame(0x28)
 
         assertFalse(VehicleSignals.doorStatesFromFrame(allClosed, allClosed.size)!!.hasOpenDoor)
-        assertEquals(DoorStates(true, false, false, false), VehicleSignals.doorStatesFromFrame(door1, 10))
-        assertEquals(DoorStates(true, true, false, false), VehicleSignals.doorStatesFromFrame(door2, 10))
-        assertEquals(DoorStates(true, false, true, false), VehicleSignals.doorStatesFromFrame(door3, 10))
-        assertEquals(DoorStates(false, false, false, true), VehicleSignals.doorStatesFromFrame(door4, 10))
+        assertEquals(DoorStates(true, false, false, false, tailgateOpen = false), VehicleSignals.doorStatesFromFrame(door1, 10))
+        assertEquals(DoorStates(true, true, false, false, tailgateOpen = false), VehicleSignals.doorStatesFromFrame(door2, 10))
+        assertEquals(DoorStates(true, false, true, false, tailgateOpen = false), VehicleSignals.doorStatesFromFrame(door3, 10))
+        assertEquals(DoorStates(false, false, false, true, tailgateOpen = false), VehicleSignals.doorStatesFromFrame(door4, 10))
     }
 
     @Test
@@ -86,6 +95,7 @@ class DoorStatesTest {
         assertFalse(shouldDisplayForwardSpeed(0f))
         assertFalse(shouldDisplayForwardSpeed(0.5f))
         assertTrue(shouldDisplayForwardSpeed(0.51f))
+        assertTrue(shouldDisplayForwardSpeed(-3.08f))
         assertTrue(shouldDisplayForwardSpeed(15.76f))
     }
 
@@ -108,6 +118,15 @@ class DoorStatesTest {
         0x02,
         low.toByte(),
         high.toByte(),
+        0,
+    )
+
+    private fun ignitionFrame(status: Int) = byteArrayOf(
+        0x2E,
+        0x41,
+        0x02,
+        0x03,
+        status.toByte(),
         0,
     )
 }

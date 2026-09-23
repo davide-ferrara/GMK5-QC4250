@@ -59,7 +59,7 @@
     <string name="tailgate_label">Portellone posteriore</string>
     <string name="tailgate_open">Aperto</string>
     <string name="tailgate_closed">Chiuso</string>
-    <string name="tailgate_can_pending">Segnale CAN portellone da verificare</string>
+    <string name="tailgate_can_pending">In attesa del segnale CAN del portellone</string>
     <string name="hood_label">Cofano</string>
     <string name="hood_open">Aperto</string>
     <string name="hood_closed">Chiuso</string>
@@ -67,7 +67,9 @@
     <string name="indicator_lights_on">Luci esterne accese</string>
     <string name="indicator_lights_off">Luci esterne spente</string>
     <string name="indicator_lights_waiting">In attesa del segnale luci</string>
-    <string name="indicator_ignition_waiting">Segnale CAN del quadro da verificare</string>
+    <string name="indicator_ignition_on">Quadro acceso</string>
+    <string name="indicator_ignition_off">Quadro spento</string>
+    <string name="indicator_ignition_waiting">In attesa del segnale CAN del quadro</string>
     <string name="indicator_parking_brake_applied">Freno di stazionamento inserito</string>
     <string name="indicator_parking_brake_released">Freno di stazionamento rilasciato</string>
     <string name="indicator_parking_brake_waiting">In attesa del segnale CAN del freno di stazionamento</string>

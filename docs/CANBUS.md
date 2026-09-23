@@ -160,9 +160,10 @@ callback publishes a repeated frame in this shape:
 ```
 
 `SS` is a status byte. Its low nibble is the confirmed open-door bitset. Bit
-`0x10` is the verified hood-open state. During owner-operated open/close
-testing, the stable frame changed from `... 22 ...` (hood closed) to
-`... 32 ...` (hood open) and back, leaving the low four door bits unchanged.
+`0x10` is the verified tailgate-open state. During two owner-operated
+open/close cycles, the stable frame changed from `... 21 ...` (tailgate
+closed) to `... 31 ...` (tailgate open) and back, leaving the driver-door bit
+unchanged.
 User-operated parking-brake testing confirmed bit `0x20`: with the brake
 initially applied, the frame was `... 22 ...`; releasing it produced
 `... 02 ...`; three further apply/release cycles repeated the same transition.
@@ -177,37 +178,38 @@ A short `0xA0` close transition was observed; bit `0x80` is not yet identified.
 
 | State | On status byte | Bit |
 |---|---:|---:|
-| Hood open | `0x10` | `0x10` |
+| Tailgate open | `0x10` | `0x10` |
 | Parking brake applied | `0x20` | `0x20` |
 
 The launcher registers only `setCanbusInterface` (transaction 3) while its
 main activity is visible and unregisters it with transaction 6 when it stops.
-It decodes the low four bits and the verified hood bit `0x10` into a read-only
+It decodes the low four bits and the verified tailgate bit `0x10` into a read-only
 `DoorStates` flow, and bit `0x20` into a separate nullable parking-brake flow;
 it does not call `setValue`,
 `setCanbusDataToUser`, or `deviceOnkey`.
 
-### Tailgate: not yet calibrated
+### Tailgate: verified raw bit
 
-The rear tailgate render is available in Info as a visual preview. The CAN
-decoder leaves `tailgateOpen = null`; unknown is not reported as closed. Bit
-`0x10` in this frame is now known to be the hood, so it must not be used for
-the tailgate.
+The `2E 41 06 01` raw status byte uses `SS & 0x10` for the rear tailgate. Two
+complete open/close cycles on 2026-09-23 produced the same transition each
+time: `0x21` closed and `0x31` open, with the driver door open and parking
+brake unchanged. A second frame independently tracked the same action:
 
-Before enabling decoding, capture repeated closed/open/closed tailgate cycles
-with all four doors closed, then repeat with one side door open and with the
-parking brake applied/released. Compare the complete frames and verify a bit
-that tracks only the tailgate; do not send guessed frames to the bus. The UI
-render bit `16` is an internal image index, independent of the raw CAN status
-byte.
+```text
+tailgate open:   2E 24 02 00 11 C8
+tailgate closed: 2E 24 02 00 01 D8
+```
 
-### Hood: verified raw bit
+The launcher decodes the verified bit into `tailgateOpen`, which drives both
+the Info value and render bit `16`. That render bit is an internal image index,
+independent of the raw CAN status byte.
 
-The `2E 41 06 01` raw status byte uses `SS & 0x10` for the hood. The launcher
-updates `hoodOpen` directly from that receive-only frame; it does not bind the
-OEM structured door service or invoke any vehicle-control transaction. The
-current hood state is displayed in **Project information** as `Cofano`. The
-top-view car assets do not yet contain a front-hood-open rendering.
+### Front hood: not yet calibrated
+
+The earlier `0x10` attribution to the front hood was disproved by the
+controlled tailgate test. The decoder therefore leaves `hoodOpen = null` and
+the Info page reports that it is waiting for a front-hood CAN signal instead
+of inventing a closed state.
 
 ### Vehicle speed: signed 16-bit field
 
@@ -231,6 +233,23 @@ the instrument cluster. This confirms both the signed direction and the
 negative on the wire, while the home screen uses its magnitude to decide that
 the vehicle is moving. The Info page retains the last received CAN speed to
 aid diagnostics after the vehicle stops.
+
+### Ignition / instrument cluster: binary on/off
+
+A controlled owner-operated test on 2026-09-23 repeated two complete
+ignition-on/ignition-off cycles, leaving the other vehicle controls unchanged.
+The passive raw callback produced each state three times per transition:
+
+```text
+ignition on:  2E 41 02 03 40 79
+ignition off: 2E 41 02 03 00 B9
+```
+
+The status byte is `0x40` when the instrument cluster is on and `0x00` when it
+is off. The final byte changes with the payload checksum and is not a separate
+state. The driver door was open throughout the test; its independently decoded
+`0x01` bit appeared only in the separate `2E 41 06 01 SS ...` door-status
+frame.
 
 ### Reverse gear / rear-camera trigger
 
@@ -268,7 +287,6 @@ property, setting, or distinct broadcast on this configuration:
 | Forward gears | First and second were selected and returned to neutral repeatedly while stationary, with clutch and brake applied | No repeatable direct gear-position frame. Reverse remains readable through its dedicated camera trigger. |
 | Central locking | Locked then unlocked with all doors closed | No distinct lock/unlock frame; the previously seen `0x80` status bit did not recur and remains unidentified. |
 | MFA / trip-computer data | The instrument cluster has no MFA controls or selectable driving-data pages | No in-car reference for odometer, trip distance, fuel, or external-temperature frames. |
-| ACC / ignition | No controlled ignition test yet; `2E 41 02 03 40 79` and `2E 41 02 03 00 B9` were observed with concurrent changes | The launcher leaves the quadro icon in the unverified state. The `2E 41 02` frames remain uncalibrated. |
 | Engine running / RPM | A varying `2E 14 01 VV CC` frame was observed with the engine running and `VV=0` after it stopped | Meaning and scale not calibrated. |
 | Turn indicators | Left and right indicators enabled and disabled separately | No distinct event. |
 | Hazard lights | Hazard lights enabled and disabled | No distinct event. |
@@ -299,9 +317,10 @@ this unit, the useful confirmed inputs are currently:
 1. binary exterior-light state;
 2. individual state of all four doors;
 3. parking-brake applied/released state (`0x20` in the door-status frame);
-4. hood state (`0x10` in the door-status frame);
+4. tailgate state (`0x10` in the door-status frame);
 5. signed vehicle speed at `0.01 km/h` resolution;
-6. reverse/rear-camera state.
+6. ignition/instrument-cluster state (`0x40` on, `0x00` off);
+7. reverse/rear-camera state.
 
 The negative results do not prove that the Golf Mk5 CAN network lacks the
 signals. They show only that the current CAN box, configuration, and Android

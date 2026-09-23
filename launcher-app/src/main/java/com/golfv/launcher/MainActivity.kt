@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
                 exteriorLights = vehicleSignals.exteriorLights,
                 doors = vehicleSignals.doors,
                 parkingBrakeApplied = vehicleSignals.parkingBrakeApplied,
+                ignitionOn = vehicleSignals.ignitionOn,
                 vehicleSpeedKph = vehicleSignals.vehicleSpeedKph,
                 lastVehicleSpeedKph = vehicleSignals.lastVehicleSpeedKph,
                 onSplashFinished = ::playWelcomeSound,
