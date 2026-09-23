@@ -56,4 +56,15 @@
     <string name="door_rear_driver">3 · Posteriore guidatore</string>
     <string name="door_rear_passenger">4 · Posteriore passeggero</string>
     <string name="doors_preview_hint">Solo anteprima: seleziona gli sportelli e torna alla Home. Automatico CAN ripristina i segnali reali. L’anteprima luci vale anche per la vista dall’alto.</string>
+    <string name="indicator_lights_on">Luci esterne accese</string>
+    <string name="indicator_lights_off">Luci esterne spente</string>
+    <string name="indicator_lights_waiting">In attesa del segnale luci</string>
+    <string name="indicator_parking_brake_applied">Freno a mano inserito</string>
+    <string name="indicator_parking_brake_released">Freno a mano rilasciato</string>
+    <string name="indicator_parking_brake_waiting">In attesa del segnale CAN del freno a mano</string>
+    <string name="parking_brake_preview_label">Anteprima freno a mano</string>
+    <string name="parking_brake_preview_auto">Automatico CAN</string>
+    <string name="parking_brake_preview_applied">Inserito</string>
+    <string name="parking_brake_preview_released">Rilasciato</string>
+    <string name="parking_brake_preview_hint">Solo anteprima visiva. Seleziona uno stato e torna alla Home per controllare la spia rossa. Automatico CAN ripristina il segnale reale; la diagnostica CAN resta invariata.</string>
 </resources>

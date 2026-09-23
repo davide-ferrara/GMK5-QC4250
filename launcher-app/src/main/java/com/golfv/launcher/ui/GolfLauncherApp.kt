@@ -103,6 +103,12 @@ private enum class LightsPreview(val label: Int) {
     Off(R.string.lights_preview_off),
 }
 
+private enum class ParkingBrakePreview(val label: Int) {
+    Automatic(R.string.parking_brake_preview_auto),
+    Applied(R.string.parking_brake_preview_applied),
+    Released(R.string.parking_brake_preview_released),
+}
+
 private enum class HomePreview(val label: Int) {
     Automatic(R.string.home_preview_auto),
     Speed(R.string.home_preview_speed),
@@ -121,6 +127,7 @@ fun GolfLauncherApp(
     doors: StateFlow<DoorStates?>,
     vehicleSpeedKph: StateFlow<Float>,
     lastVehicleSpeedKph: StateFlow<Float?>,
+    parkingBrakeApplied: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
     onSplashFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
@@ -133,10 +140,12 @@ fun GolfLauncherApp(
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
     val exteriorLightsState by exteriorLights.collectAsState()
     val doorStates by doors.collectAsState()
+    val parkingBrakeIsApplied by parkingBrakeApplied.collectAsState()
     val speedKph by vehicleSpeedKph.collectAsState()
     val lastSpeedKph by lastVehicleSpeedKph.collectAsState()
     // Visual override only; never change the CAN state or persist a test mode.
     var lightsPreview by remember { mutableStateOf(LightsPreview.Automatic) }
+    var parkingBrakePreview by remember { mutableStateOf(ParkingBrakePreview.Automatic) }
     var doorsPreview by remember { mutableStateOf<Int?>(null) }
     var homePreview by remember { mutableStateOf(HomePreview.Automatic) }
     val doorMask = doorsPreview ?: (doorStates?.renderMask ?: 0)
@@ -144,6 +153,16 @@ fun GolfLauncherApp(
         LightsPreview.Automatic -> exteriorLightsState == ExteriorLightsState.On
         LightsPreview.On -> true
         LightsPreview.Off -> false
+    }
+    val indicatorLightsState = when (lightsPreview) {
+        LightsPreview.Automatic -> exteriorLightsState
+        LightsPreview.On -> ExteriorLightsState.On
+        LightsPreview.Off -> ExteriorLightsState.Off
+    }
+    val indicatorParkingBrakeApplied = when (parkingBrakePreview) {
+        ParkingBrakePreview.Automatic -> parkingBrakeIsApplied
+        ParkingBrakePreview.Applied -> true
+        ParkingBrakePreview.Released -> false
     }
 
     GolfLauncherTheme(accentTheme) {
@@ -167,6 +186,8 @@ fun GolfLauncherApp(
                 accentTheme = accentTheme,
                 speedKph = speedKph,
                 lightsOn = lightsOn,
+                lightsState = indicatorLightsState,
+                parkingBrakeApplied = indicatorParkingBrakeApplied,
                 doorMask = doorMask,
                 forceTopView = doorsPreview != null,
                 homePreview = homePreview,
@@ -191,6 +212,8 @@ fun GolfLauncherApp(
                     onHomePreviewChange = { homePreview = it },
                     lightsPreview = lightsPreview,
                     onLightsPreviewChange = { lightsPreview = it },
+                    parkingBrakePreview = parkingBrakePreview,
+                    onParkingBrakePreviewChange = { parkingBrakePreview = it },
                     doorsPreview = doorsPreview,
                     onDoorsPreviewChange = { doorsPreview = it },
                     onAccentThemeChange = { selectedTheme ->
@@ -231,6 +254,8 @@ private fun HomeScreen(
     accentTheme: AccentTheme,
     speedKph: Float,
     lightsOn: Boolean,
+    lightsState: ExteriorLightsState,
+    parkingBrakeApplied: Boolean?,
     doorMask: Int,
     forceTopView: Boolean,
     homePreview: HomePreview,
@@ -250,22 +275,31 @@ private fun HomeScreen(
         ) {
             ClockAndDate()
             Spacer(modifier = Modifier.weight(1f))
-            Dock(
-              // HUMAN CHANGE: I'm switching from com.zjinnova.zlink to com.andrerinas.headunitrevived
-                onAndroidAuto = { launchPackage(context, "com.andrerinas.headunitrevived") },
-                onRadio = { launchPackage(context, "com.golfv.radio") },
-                onOemSettings = {
-                    launchIntent(
-                        context,
-                        Intent().setComponent(
-                            ComponentName("com.xyauto.Settings", "com.xyauto.Settings.MainActivity"),
-                        ),
-                    )
-                },
-                onAndroidSettings = { launchIntent(context, Intent(Settings.ACTION_SETTINGS)) },
-                onOpenApps = onOpenApps,
+            Row(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Dock(
+                    // HUMAN CHANGE: I'm switching from com.zjinnova.zlink to com.andrerinas.headunitrevived
+                    onAndroidAuto = { launchPackage(context, "com.andrerinas.headunitrevived") },
+                    onRadio = { launchPackage(context, "com.golfv.radio") },
+                    onOemSettings = {
+                        launchIntent(
+                            context,
+                            Intent().setComponent(
+                                ComponentName("com.xyauto.Settings", "com.xyauto.Settings.MainActivity"),
+                            ),
+                        )
+                    },
+                    onAndroidSettings = { launchIntent(context, Intent(Settings.ACTION_SETTINGS)) },
+                    onOpenApps = onOpenApps,
+                )
+                VehicleSignalIndicators(
+                    lightsState = lightsState,
+                    parkingBrakeApplied = parkingBrakeApplied,
+                )
+            }
         }
 
         Surface(
@@ -288,6 +322,73 @@ private fun HomeScreen(
             }
         }
 
+    }
+}
+
+@Composable
+private fun VehicleSignalIndicators(
+    lightsState: ExteriorLightsState,
+    parkingBrakeApplied: Boolean?,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        VehicleSignalIndicator(
+            icon = R.drawable.ic_light_indicator,
+            description = stringResource(
+                when (lightsState) {
+                    ExteriorLightsState.On -> R.string.indicator_lights_on
+                    ExteriorLightsState.Off -> R.string.indicator_lights_off
+                    ExteriorLightsState.Unknown -> R.string.indicator_lights_waiting
+                },
+            ),
+            active = lightsState == ExteriorLightsState.On,
+            activeColor = Color(0xFF70E59B),
+            testTag = "lightsStatusIndicator",
+        )
+        VehicleSignalIndicator(
+            icon = R.drawable.ic_parking_brake_indicator,
+            description = stringResource(
+                when (parkingBrakeApplied) {
+                    true -> R.string.indicator_parking_brake_applied
+                    false -> R.string.indicator_parking_brake_released
+                    null -> R.string.indicator_parking_brake_waiting
+                },
+            ),
+            active = parkingBrakeApplied == true,
+            activeColor = Color(0xFFFF625D),
+            testTag = "parkingBrakeStatusIndicator",
+        )
+    }
+}
+
+@Composable
+private fun VehicleSignalIndicator(
+    @DrawableRes icon: Int,
+    description: String,
+    active: Boolean,
+    activeColor: Color,
+    testTag: String,
+) {
+    Surface(
+        modifier = Modifier.size(48.dp).testTag(testTag),
+        shape = CircleShape,
+        color = if (active) activeColor.copy(alpha = 0.18f) else Color(0xCC18212B),
+        border = BorderStroke(
+            1.dp,
+            if (active) activeColor.copy(alpha = 0.75f) else Color(0x55788796),
+        ),
+        shadowElevation = if (active) 5.dp else 1.dp,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = description,
+                tint = if (active) activeColor else Color(0xFF71808E),
+                modifier = Modifier.size(23.dp),
+            )
+        }
     }
 }
 
@@ -615,6 +716,8 @@ private fun ProjectInfoScreen(
     onHomePreviewChange: (HomePreview) -> Unit,
     lightsPreview: LightsPreview,
     onLightsPreviewChange: (LightsPreview) -> Unit,
+    parkingBrakePreview: ParkingBrakePreview,
+    onParkingBrakePreviewChange: (ParkingBrakePreview) -> Unit,
     doorsPreview: Int?,
     onDoorsPreviewChange: (Int?) -> Unit,
     onAccentThemeChange: (AccentTheme) -> Unit,
@@ -721,6 +824,27 @@ private fun ProjectInfoScreen(
             }
             Text(
                 stringResource(R.string.lights_preview_hint),
+                color = Color(0xFF8D9AA7),
+                fontSize = 14.sp,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.parking_brake_preview_label),
+                color = Color(0xFF8D9AA7),
+                fontSize = 18.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ParkingBrakePreview.entries.forEach { mode ->
+                    FilterChip(
+                        selected = parkingBrakePreview == mode,
+                        onClick = { onParkingBrakePreviewChange(mode) },
+                        label = { Text(stringResource(mode.label)) },
+                        modifier = Modifier.testTag("parkingBrakePreview${mode.name}"),
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.parking_brake_preview_hint),
                 color = Color(0xFF8D9AA7),
                 fontSize = 14.sp,
             )

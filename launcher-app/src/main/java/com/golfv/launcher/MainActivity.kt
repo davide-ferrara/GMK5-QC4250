@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
             GolfLauncherApp(
                 exteriorLights = vehicleSignals.exteriorLights,
                 doors = vehicleSignals.doors,
+                parkingBrakeApplied = vehicleSignals.parkingBrakeApplied,
                 vehicleSpeedKph = vehicleSignals.vehicleSpeedKph,
                 lastVehicleSpeedKph = vehicleSignals.lastVehicleSpeedKph,
                 onSplashFinished = ::playWelcomeSound,

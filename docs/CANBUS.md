@@ -178,8 +178,9 @@ is not yet identified.
 
 The launcher registers only `setCanbusInterface` (transaction 3) while its
 main activity is visible and unregisters it with transaction 6 when it stops.
-It decodes the low four bits into a read-only `DoorStates` flow; it does not
-call `setValue`, `setCanbusDataToUser`, or `deviceOnkey`.
+It decodes the low four bits into a read-only `DoorStates` flow and bit `0x20`
+into a separate nullable parking-brake flow; it does not call `setValue`,
+`setCanbusDataToUser`, or `deviceOnkey`.
 
 ### Vehicle speed: signed 16-bit field
 
