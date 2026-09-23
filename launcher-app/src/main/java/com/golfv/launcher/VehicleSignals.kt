@@ -16,14 +16,13 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.abs
 
 internal const val FORWARD_SPEED_DISPLAY_THRESHOLD_KPH = 0.5f
 private const val TAILGATE_OPEN_BIT = 0x10
 
-/** Show movement in either direction while ignoring sub-0.5 km/h CAN noise. */
+/** Reverse is handled by the camera overlay; show only forward movement. */
 internal fun shouldDisplayForwardSpeed(speedKph: Float): Boolean =
-    abs(speedKph) > FORWARD_SPEED_DISPLAY_THRESHOLD_KPH
+    speedKph > FORWARD_SPEED_DISPLAY_THRESHOLD_KPH
 
 /**
  * Read-only vehicle signals published by the OEM Android integration.
@@ -143,12 +142,15 @@ class VehicleSignals(context: Context) {
     }
 
     private fun updateVehicleSpeed(speedKph: Float) {
-        _vehicleSpeedKph.value = speedKph
+        // Reverse opens the dedicated camera overlay. Clear the Home speed
+        // immediately so its last negative sample cannot reappear when the
+        // camera closes and first gear is selected.
+        _vehicleSpeedKph.value = speedKph.coerceAtLeast(0f)
         _lastVehicleSpeedKph.value = speedKph
         mainHandler.removeCallbacks(clearVehicleSpeed)
         // The CAN bridge stops forwarding this event when stationary. Do not
         // leave a last non-zero reading covering the car after it has stopped.
-        if (speedKph != 0f) mainHandler.postDelayed(clearVehicleSpeed, SPEED_STALE_AFTER_MS)
+        if (speedKph > 0f) mainHandler.postDelayed(clearVehicleSpeed, SPEED_STALE_AFTER_MS)
     }
 
     /**
@@ -239,7 +241,7 @@ class VehicleSignals(context: Context) {
         private const val CANBUS_RETRY_AFTER_MS = 2_000L
         // Moving frames repeat roughly every 0.58 s, but the bridge never sends
         // an explicit zero after stopping. Clear shortly after repetitions end.
-        private const val SPEED_STALE_AFTER_MS = 1_500L
+        private const val SPEED_STALE_AFTER_MS = 1_200L
         private const val PARKING_BRAKE_APPLIED_BIT = 0x20
 
         /**

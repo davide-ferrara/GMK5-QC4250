@@ -95,7 +95,7 @@ class DoorStatesTest {
         assertFalse(shouldDisplayForwardSpeed(0f))
         assertFalse(shouldDisplayForwardSpeed(0.5f))
         assertTrue(shouldDisplayForwardSpeed(0.51f))
-        assertTrue(shouldDisplayForwardSpeed(-3.08f))
+        assertFalse(shouldDisplayForwardSpeed(-3.08f))
         assertTrue(shouldDisplayForwardSpeed(15.76f))
     }
 

@@ -93,7 +93,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private enum class LauncherScreen { Splash, Home, Apps, Info }
@@ -438,7 +437,7 @@ private fun CarBackground(
         HomePreview.Speed -> true
         HomePreview.Golf -> false
     }
-    val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else abs(speedKph)
+    val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else speedKph
     var videoFailed by remember { mutableStateOf(false) }
     var introComplete by remember { mutableStateOf(false) }
     val replayInteractionSource = remember { MutableInteractionSource() }

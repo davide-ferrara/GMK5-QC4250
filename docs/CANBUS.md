@@ -229,16 +229,17 @@ supporting the speed interpretation rather than steering angle.
 
 The owner subsequently observed `15.76 km/h` in the launcher, consistent with
 the instrument cluster. This confirms both the signed direction and the
-`0.01 km/h` scale. The launcher exposes the value read-only; reverse is
-negative on the wire, while the home screen uses its magnitude to decide that
-the vehicle is moving. The Info page retains the last received CAN speed to
-aid diagnostics after the vehicle stops.
+`0.01 km/h` scale. The launcher exposes the value read-only. Reverse is
+negative on the wire and opens the dedicated camera overlay, so the Home speed
+is cleared immediately for negative samples; this prevents a stale reverse
+sample from appearing when the camera closes and first gear is selected. The
+Info page retains the signed raw value for diagnostics.
 
 A later two-metre parking test showed that moving speed frames arrive in
 repeated groups at roughly 0.58-second intervals. At a complete stop the CAN
 bridge does not publish an explicit zero: it repeats the last non-zero sample
 for several seconds and then becomes silent. The launcher therefore clears
-the live Home speed 1.5 seconds after the final speed frame, while retaining
+the live Home speed 1.2 seconds after the final speed frame, while retaining
 the last raw value only on the diagnostic Info page. The raw values changed in
 coarse steps during this very slow test; the UI does not invent interpolated
 samples between CAN updates.
