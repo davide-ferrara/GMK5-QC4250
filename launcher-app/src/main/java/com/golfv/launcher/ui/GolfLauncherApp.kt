@@ -120,6 +120,9 @@ private const val SPLASH_FADE_DURATION_MS = 450
 private const val SPLASH_AUDIO_DELAY_MS = 150L
 private const val PREFERENCES_NAME = "launcher_preferences"
 private const val ACCENT_THEME_KEY = "accent_theme"
+private const val RADIO_PACKAGE = "com.golfv.radio"
+private const val ACTION_RADIO_THEME_CHANGED = "com.golfv.launcher.action.ACCENT_THEME_CHANGED"
+private const val EXTRA_RADIO_ACCENT_THEME = "com.golfv.launcher.extra.ACCENT_THEME"
 
 @Composable
 fun GolfLauncherApp(
@@ -224,6 +227,11 @@ fun GolfLauncherApp(
                         preferences.edit()
                             .putString(ACCENT_THEME_KEY, selectedTheme.preferenceValue)
                             .apply()
+                        context.sendBroadcast(
+                            Intent(ACTION_RADIO_THEME_CHANGED)
+                                .setPackage(RADIO_PACKAGE)
+                                .putExtra(EXTRA_RADIO_ACCENT_THEME, selectedTheme.preferenceValue),
+                        )
                     },
                     onClose = { screen = LauncherScreen.Home },
                 )
@@ -286,7 +294,7 @@ private fun HomeScreen(
                 Dock(
                     // HUMAN CHANGE: I'm switching from com.zjinnova.zlink to com.andrerinas.headunitrevived
                     onAndroidAuto = { launchPackage(context, "com.andrerinas.headunitrevived") },
-                    onRadio = { launchPackage(context, "com.golfv.radio") },
+                    onRadio = { launchRadio(context, accentTheme) },
                     onOemSettings = {
                         launchIntent(
                             context,
@@ -1146,6 +1154,17 @@ private fun launchPackage(context: Context, packageName: String) {
     if (intent == null) {
         unavailable(context, "$packageName is not installed")
     } else {
+        launchIntent(context, intent)
+    }
+}
+
+private fun launchRadio(context: Context, accentTheme: AccentTheme) {
+    val intent = context.packageManager.getLaunchIntentForPackage(RADIO_PACKAGE)
+    if (intent == null) {
+        unavailable(context, "$RADIO_PACKAGE is not installed")
+    } else {
+        intent.putExtra(EXTRA_RADIO_ACCENT_THEME, accentTheme.preferenceValue)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         launchIntent(context, intent)
     }
 }

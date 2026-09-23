@@ -29,6 +29,40 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
+private enum class RadioAccentTheme(
+    val preferenceValue: String,
+    val primary: Int,
+    val primaryPressed: Int,
+    val accent: Int,
+    val surfacePressed: Int,
+    val border: Int,
+    val scaleNeedle: Int,
+) {
+    VolkswagenBlue(
+        "volkswagen-blue",
+        Color.rgb(35, 109, 168),
+        Color.rgb(52, 126, 189),
+        Color.rgb(143, 211, 255),
+        Color.rgb(43, 74, 98),
+        Color.rgb(43, 58, 73),
+        Color.rgb(179, 38, 50),
+    ),
+    InstrumentRed(
+        "instrument-red",
+        Color.rgb(179, 38, 50),
+        Color.rgb(211, 59, 71),
+        Color.rgb(255, 133, 140),
+        Color.rgb(78, 36, 42),
+        Color.rgb(76, 48, 55),
+        Color.rgb(255, 133, 140),
+    );
+
+    companion object {
+        fun fromPreference(value: String?): RadioAccentTheme? =
+            entries.firstOrNull { it.preferenceValue == value }
+    }
+}
+
 class MainActivity : Activity() {
     private lateinit var frequencyView: TextView
     private lateinit var stationNameView: TextView
@@ -46,6 +80,8 @@ class MainActivity : Activity() {
     private var pendingTuneFrequency: Int? = null
     private var currentFrequency = -1
     private var currentStationName = ""
+    private var accentTheme = RadioAccentTheme.VolkswagenBlue
+    private var themeReceiverRegistered = false
 
     private val frequencyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -55,8 +91,20 @@ class MainActivity : Activity() {
         }
     }
 
+    private val accentThemeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_ACCENT_THEME_CHANGED) return
+            updateAccentTheme(intent.getStringExtra(EXTRA_ACCENT_THEME))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        accentTheme = RadioAccentTheme.fromPreference(
+            intent?.getStringExtra(EXTRA_ACCENT_THEME)
+                ?: preferences.getString(KEY_ACCENT_THEME, null),
+        ) ?: RadioAccentTheme.VolkswagenBlue
+        preferences.edit().putString(KEY_ACCENT_THEME, accentTheme.preferenceValue).apply()
         currentFrequency = preferences.getInt(KEY_LAST_FREQUENCY, -1)
         currentStationName = preferences.getString(KEY_LAST_STATION_NAME, null)
             ?: getString(R.string.rds_waiting)
@@ -75,8 +123,23 @@ class MainActivity : Activity() {
             registerReceiver(frequencyReceiver, IntentFilter(ACTION_FREQUENCY_CHANGED))
             receiverRegistered = true
         }
+        if (!themeReceiverRegistered) {
+            registerReceiver(
+                accentThemeReceiver,
+                IntentFilter(ACTION_ACCENT_THEME_CHANGED),
+                THEME_BROADCAST_PERMISSION,
+                null,
+            )
+            themeReceiverRegistered = true
+        }
         restoreRadio()
         startRdsReader()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(EXTRA_ACCENT_THEME)?.let(::updateAccentTheme)
     }
 
     override fun onStop() {
@@ -90,6 +153,10 @@ class MainActivity : Activity() {
             unregisterReceiver(frequencyReceiver)
             receiverRegistered = false
         }
+        if (themeReceiverRegistered) {
+            unregisterReceiver(accentThemeReceiver)
+            themeReceiverRegistered = false
+        }
         super.onStop()
     }
 
@@ -99,6 +166,7 @@ class MainActivity : Activity() {
     }
 
     private fun createContentView(): View {
+        presetViews.clear()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -115,6 +183,26 @@ class MainActivity : Activity() {
         return root
     }
 
+    private fun updateAccentTheme(preferenceValue: String?) {
+        val selectedTheme = RadioAccentTheme.fromPreference(preferenceValue) ?: return
+        if (accentTheme == selectedTheme) return
+
+        accentTheme = selectedTheme
+        preferences.edit().putString(KEY_ACCENT_THEME, selectedTheme.preferenceValue).apply()
+        if (!::frequencyView.isInitialized) return
+
+        val previousStationName = stationNameView.text
+        val previousFrequency = frequencyView.text
+        val previousScaleFrequency = tuningScale.frequency
+        val wasWelcomeVisible = tuningScale.welcome
+        setContentView(createContentView())
+        stationNameView.text = previousStationName
+        frequencyView.text = previousFrequency
+        tuningScale.frequency = previousScaleFrequency
+        tuningScale.welcome = wasWelcomeVisible
+        highlightCurrentPreset()
+    }
+
     private fun createCenterPanel() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
@@ -123,7 +211,7 @@ class MainActivity : Activity() {
 
         addView(TextView(this@MainActivity).apply {
             text = getString(R.string.band_label)
-            setTextColor(BLUE_DIM)
+            setTextColor(accentTheme.primary)
             textSize = 22f
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -132,7 +220,7 @@ class MainActivity : Activity() {
 
         stationNameView = TextView(this@MainActivity).apply {
             text = currentStationName
-            setTextColor(BLUE)
+            setTextColor(accentTheme.accent)
             textSize = 38f
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
@@ -153,13 +241,18 @@ class MainActivity : Activity() {
 
         addView(TextView(this@MainActivity).apply {
             text = "MHz"
-            setTextColor(BLUE_DIM)
+            setTextColor(accentTheme.primary)
             textSize = 30f
             gravity = Gravity.CENTER
             letterSpacing = 0.22f
         }, LinearLayout.LayoutParams(MATCH, dp(42)))
 
-        tuningScale = TuningScaleView(this@MainActivity)
+        tuningScale = TuningScaleView(
+            this@MainActivity,
+            accentTheme.primary,
+            accentTheme.scaleNeedle,
+            accentTheme.accent,
+        )
         addView(tuningScale, LinearLayout.LayoutParams(MATCH, dp(82)))
 
         val seekRow = LinearLayout(this@MainActivity).apply {
@@ -188,7 +281,7 @@ class MainActivity : Activity() {
             val index = firstIndex + offset
             val preset = TextView(this@MainActivity).apply {
                 gravity = Gravity.CENTER
-                setTextColor(BLUE)
+                setTextColor(accentTheme.accent)
                 textSize = 23f
                 typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
                 background = presetBackground(false)
@@ -210,7 +303,7 @@ class MainActivity : Activity() {
     private fun golfButton(label: String, action: () -> Unit) = Button(this).apply {
         text = label
         textSize = 25f
-        setTextColor(BLUE)
+        setTextColor(accentTheme.accent)
         typeface = Typeface.DEFAULT_BOLD
         background = presetBackground(false)
         setOnClickListener { action() }
@@ -470,13 +563,13 @@ class MainActivity : Activity() {
     private fun panelBackground() = GradientDrawable().apply {
         setColor(BACKGROUND)
         cornerRadius = dp(8).toFloat()
-        setStroke(dp(1), BORDER)
+        setStroke(dp(1), accentTheme.border)
     }
 
     private fun displayBackground() = GradientDrawable().apply {
         setColor(SURFACE)
         cornerRadius = dp(8).toFloat()
-        setStroke(dp(1), PRIMARY)
+        setStroke(dp(1), accentTheme.primary)
     }
 
     /** A high-contrast pressed state makes controls usable at a glance in the car. */
@@ -484,14 +577,17 @@ class MainActivity : Activity() {
         addState(
             intArrayOf(android.R.attr.state_pressed),
             solidButtonBackground(
-                if (selected) PRIMARY_PRESSED else SURFACE_PRESSED,
-                ACCENT,
+                if (selected) accentTheme.primaryPressed else accentTheme.surfacePressed,
+                accentTheme.accent,
                 2,
             ),
         )
         addState(
             intArrayOf(),
-            solidButtonBackground(if (selected) PRIMARY else SURFACE_ELEVATED, if (selected) ACCENT else BORDER),
+            solidButtonBackground(
+                if (selected) accentTheme.primary else SURFACE_ELEVATED,
+                if (selected) accentTheme.accent else accentTheme.border,
+            ),
         )
     }
 
@@ -507,6 +603,7 @@ class MainActivity : Activity() {
     private companion object {
         const val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
         const val PREFS = "radio_presets"
+        const val KEY_ACCENT_THEME = "accent_theme"
         const val KEY_LAST_FREQUENCY = "last_frequency"
         const val KEY_LAST_STATION_NAME = "last_station_name"
         const val PRESET_COUNT = 8
@@ -521,6 +618,9 @@ class MainActivity : Activity() {
         const val EXTRA_METHOD = "method"
         const val EXTRA_PARAMETER_FREQUENCY = "param_freq"
         const val METHOD_SET_FREQUENCY = "method_setFreq"
+        const val ACTION_ACCENT_THEME_CHANGED = "com.golfv.launcher.action.ACCENT_THEME_CHANGED"
+        const val EXTRA_ACCENT_THEME = "com.golfv.launcher.extra.ACCENT_THEME"
+        const val THEME_BROADCAST_PERMISSION = "com.golfv.radio.permission.UPDATE_THEME"
         const val BACKEND_WARMUP_MS = 300L
         const val FIRST_TUNE_DELAY_MS = 900L
         val TUNE_RETRY_DELAYS_MS = longArrayOf(0L, 900L, 2_400L)
@@ -528,21 +628,18 @@ class MainActivity : Activity() {
         val BACKGROUND = Color.rgb(9, 12, 16)
         val SURFACE = Color.rgb(17, 24, 32)
         val SURFACE_ELEVATED = Color.rgb(24, 33, 43)
-        val SURFACE_PRESSED = Color.rgb(43, 74, 98)
-        val BORDER = Color.rgb(43, 58, 73)
-        val PRIMARY = Color.rgb(35, 109, 168)
-        val PRIMARY_PRESSED = Color.rgb(52, 126, 189)
-        val ACCENT = Color.rgb(143, 211, 255)
         val ON_SURFACE = Color.rgb(232, 236, 242)
-        val BLUE = ACCENT
-        val BLUE_DIM = PRIMARY
-        val RED = Color.rgb(179, 38, 50)
         val RDS_FREQUENCY = Regex("\"Freq\":(\\d+)")
         val RDS_PS = Regex("\"PS\":\\[([^]]+)]")
     }
 }
 
-private class TuningScaleView(context: Context) : View(context) {
+private class TuningScaleView(
+    context: Context,
+    scaleColor: Int,
+    needleColor: Int,
+    labelColor: Int,
+) : View(context) {
     var frequency: Int = -1
         set(value) {
             field = value
@@ -555,15 +652,15 @@ private class TuningScaleView(context: Context) : View(context) {
         }
 
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(35, 109, 168)
+        color = scaleColor
         strokeWidth = resources.displayMetrics.density
     }
     private val needlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(179, 38, 50)
+        color = needleColor
         strokeWidth = 3f * resources.displayMetrics.density
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(143, 211, 255)
+        color = labelColor
         textSize = 18f * resources.displayMetrics.scaledDensity
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create("sans-serif-condensed", Typeface.NORMAL)
