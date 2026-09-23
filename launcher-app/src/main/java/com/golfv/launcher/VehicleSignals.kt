@@ -237,9 +237,9 @@ class VehicleSignals(context: Context) {
         private const val CANBUS_TRANSACTION_UNREGISTER = 6
         private const val CANBUS_CALLBACK_ON_RESULT = 1
         private const val CANBUS_RETRY_AFTER_MS = 2_000L
-        // Speed frames are not guaranteed to arrive continuously at a stable
-        // road speed. Keep the moving view visible across short CAN silences.
-        private const val SPEED_STALE_AFTER_MS = 5_000L
+        // Moving frames repeat roughly every 0.58 s, but the bridge never sends
+        // an explicit zero after stopping. Clear shortly after repetitions end.
+        private const val SPEED_STALE_AFTER_MS = 1_500L
         private const val PARKING_BRAKE_APPLIED_BIT = 0x20
 
         /**

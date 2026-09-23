@@ -11,8 +11,8 @@ android {
         applicationId = "com.golfv.launcher"
         minSdk = 30
         targetSdk = 30
-        versionCode = 12
-        versionName = "0.10.0"
+        versionCode = 13
+        versionName = "0.10.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

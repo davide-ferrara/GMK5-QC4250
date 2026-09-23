@@ -234,6 +234,15 @@ negative on the wire, while the home screen uses its magnitude to decide that
 the vehicle is moving. The Info page retains the last received CAN speed to
 aid diagnostics after the vehicle stops.
 
+A later two-metre parking test showed that moving speed frames arrive in
+repeated groups at roughly 0.58-second intervals. At a complete stop the CAN
+bridge does not publish an explicit zero: it repeats the last non-zero sample
+for several seconds and then becomes silent. The launcher therefore clears
+the live Home speed 1.5 seconds after the final speed frame, while retaining
+the last raw value only on the diagnostic Info page. The raw values changed in
+coarse steps during this very slow test; the UI does not invent interpolated
+samples between CAN updates.
+
 ### Ignition / instrument cluster: binary on/off
 
 A controlled owner-operated test on 2026-09-23 repeated two complete
