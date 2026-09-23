@@ -324,11 +324,11 @@ private fun HomeScreen(
             shadowElevation = 8.dp,
         ) {
             IconButton(onClick = onOpenInfo) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_info),
+                Image(
+                    painter = painterResource(R.drawable.volkswagen_logo_2000_2012),
                     contentDescription = stringResource(R.string.project_info),
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(40.dp),
                 )
             }
         }
