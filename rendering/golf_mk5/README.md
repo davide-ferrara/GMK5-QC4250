@@ -2,21 +2,24 @@
 
 ## Door-state images used by the launcher
 
-The articulated working scene is `golf_mk5_all_doors.blend`, separate from
-the original `golf_mk5_studio_black.blend`. Export all 16 complete orthographic
+The articulated working scene is `golf_mk5_hatches_proof.blend`, separate from
+the original `golf_mk5_studio_black.blend`. Export all 32 complete orthographic
 images (1024×1024 with transparency) from this directory:
 
 ```sh
-blender -b golf_mk5_all_doors.blend --python scripts/render_door_states.py
-bash scripts/encode_door_states.sh
+blender -b golf_mk5_hatches_proof.blend --python scripts/render_door_states.py -- --tailgate
+bash scripts/encode_door_states.sh --tailgate
 ```
 
-PNG masters go to `output/studio_black/door-states-v1/`; lossless WebP images
+PNG masters go to `output/studio_black/door-states-v2/`; lossless WebP images
 go to the launcher's `drawable-nodpi` resources. Bits 1, 2, 4 and 8 represent
 driver front, passenger front, driver rear and passenger rear. An angle of
-zero closes each door; open doors use 58 degrees. Export does not save the scene.
+zero closes each door; open doors use 58 degrees. Bit 16 adds the tailgate at
+85 degrees. The front hood stays closed. Export does not save the scene.
 
-The launcher selects the complete image directly from the four CAN booleans.
+The launcher selects the complete image from the four verified CAN door states
+and optional tailgate state. The tailgate CAN decoder is deliberately unknown
+until vehicle testing; Info can preview all 32 combinations in the meantime.
 It uses the perspective view when all doors are closed, the top view when any
 door is open, and speed while moving. Info has a session-only visual override
 for all combinations, including the closed top view. Unknown CAN door state
@@ -27,13 +30,18 @@ as every door state. Compose applies the same Fit scaling and centering to
 the base image, lamp mask and bloom. Regenerate the top overlay with:
 
 ```sh
-blender -b golf_mk5_all_doors.blend --python scripts/render_lights_overlay.py -- --top
-cp output/studio_black/door-states-v1/lights/golf_top_lights_overlay.png ../../launcher-app/src/main/res/drawable-nodpi/
+blender -b golf_mk5_hatches_proof.blend --python scripts/render_lights_overlay.py -- --top
+blender -b golf_mk5_hatches_proof.blend --python scripts/render_lights_overlay.py -- --top --tailgate-open
+cp output/studio_black/door-states-v2/lights/golf_top_lights_overlay.png ../../launcher-app/src/main/res/drawable-nodpi/
+cp output/studio_black/door-states-v2/lights/golf_top_tailgate_lights_overlay.png ../../launcher-app/src/main/res/drawable-nodpi/
 ```
 
-Manual check: toggle each of the four doors in Info, try all-open/all-closed,
+Manual check: toggle each door and the tailgate in Info, try all-open/all-closed,
 return to Auto, and verify movement still replaces the car with speed. Confirm
 that opening a door interrupts the intro and closing it does not replay it.
+Test the tailgate alone and combined with side doors, with lights on/off. The
+rear lamp mask and bloom must follow the tailgate. Auto must leave the tailgate
+unknown until its CAN mapping is confirmed (see `docs/CANBUS.md`).
 
 This directory contains the isolated Blender workspace for the launcher car
 animation.

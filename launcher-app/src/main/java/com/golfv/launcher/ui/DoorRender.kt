@@ -24,6 +24,10 @@ private val doorImages = intArrayOf(
     R.drawable.golf_top_04, R.drawable.golf_top_05, R.drawable.golf_top_06, R.drawable.golf_top_07,
     R.drawable.golf_top_08, R.drawable.golf_top_09, R.drawable.golf_top_10, R.drawable.golf_top_11,
     R.drawable.golf_top_12, R.drawable.golf_top_13, R.drawable.golf_top_14, R.drawable.golf_top_15,
+    R.drawable.golf_top_16, R.drawable.golf_top_17, R.drawable.golf_top_18, R.drawable.golf_top_19,
+    R.drawable.golf_top_20, R.drawable.golf_top_21, R.drawable.golf_top_22, R.drawable.golf_top_23,
+    R.drawable.golf_top_24, R.drawable.golf_top_25, R.drawable.golf_top_26, R.drawable.golf_top_27,
+    R.drawable.golf_top_28, R.drawable.golf_top_29, R.drawable.golf_top_30, R.drawable.golf_top_31,
 )
 
 @Composable
@@ -35,7 +39,7 @@ internal fun DoorRender(mask: Int, lightsOn: Boolean, modifier: Modifier = Modif
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize(),
         )
-        CarLightsOverlay(lightsOn, topView = true)
+        CarLightsOverlay(lightsOn, topView = true, tailgateOpen = mask and 16 != 0)
     }
 }
 
@@ -60,8 +64,8 @@ internal fun DoorPreviewControls(preview: Int?, canMask: Int, onChange: (Int?) -
                 label = { Text(stringResource(R.string.doors_preview_closed)) },
             )
             FilterChip(
-                selected = preview == 15,
-                onClick = { onChange(15) },
+                selected = preview == 31,
+                onClick = { onChange(31) },
                 label = { Text(stringResource(R.string.doors_preview_open)) },
             )
         }
@@ -80,6 +84,13 @@ internal fun DoorPreviewControls(preview: Int?, canMask: Int, onChange: (Int?) -
                 }
             }
         }
+        FilterChip(
+            selected = (preview ?: canMask) and 16 != 0,
+            onClick = { onChange((preview ?: canMask) xor 16) },
+            label = { Text(stringResource(R.string.tailgate_label)) },
+            modifier = Modifier.testTag("doorsPreview16"),
+        )
+        Text(stringResource(R.string.tailgate_can_pending), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(stringResource(R.string.doors_preview_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

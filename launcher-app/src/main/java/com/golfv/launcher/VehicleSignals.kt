@@ -271,22 +271,24 @@ class VehicleSignals(context: Context) {
     }
 }
 
-/** The verified lower-nibble door-open bitset from the OEM CAN callback. */
+/** Four verified CAN doors and an optional tailgate state, pending calibration. */
 data class DoorStates(
     val door1Driver: Boolean,
     val door2FrontPassenger: Boolean,
     val door3RearDriver: Boolean,
     val door4RearPassenger: Boolean,
+    val tailgateOpen: Boolean? = null,
 ) {
-    /** Matches golf_top_00..15: driver front, passenger front, driver rear, passenger rear. */
+    /** Render-only bits 1,2,4,8,16: four doors + tailgate; NOT the raw CAN byte. */
     val renderMask: Int
         get() = (if (door1Driver) 1 else 0) or
             (if (door2FrontPassenger) 2 else 0) or
             (if (door3RearDriver) 4 else 0) or
-            (if (door4RearPassenger) 8 else 0)
+            (if (door4RearPassenger) 8 else 0) or
+            (if (tailgateOpen == true) 16 else 0)
 
     val hasOpenDoor: Boolean
-        get() = door1Driver || door2FrontPassenger || door3RearDriver || door4RearPassenger
+        get() = door1Driver || door2FrontPassenger || door3RearDriver || door4RearPassenger || tailgateOpen == true
 
     companion object {
         fun fromStatusByte(status: Int) = DoorStates(
@@ -294,6 +296,12 @@ data class DoorStates(
             door2FrontPassenger = status and 0x02 != 0,
             door3RearDriver = status and 0x04 != 0,
             door4RearPassenger = status and 0x08 != 0,
+            // TODO(vehicle verification): candidate tailgate flag is SS & 0x10
+            // in 2E 41 06 01 SS ... (e.g. 0x20 -> 0x30 with parking brake).
+            // This is a hypothesis, not a decoded signal. 0x20 is the verified
+            // parking brake, not another door. Compare repeated open/close
+            // captures before replacing null with a calibrated decoder.
+            tailgateOpen = null,
         )
     }
 }

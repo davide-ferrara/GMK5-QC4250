@@ -8,6 +8,28 @@ import org.junit.Test
 
 class DoorStatesTest {
     @Test
+    fun unverifiedTailgateAndParkingBrakeBitsNeverOpenTheTailgate() {
+        for (status in listOf(0x00, 0x10, 0x20, 0x30, 0xA0)) {
+            val state = VehicleSignals.doorStatesFromFrame(frame(status), 10)!!
+            assertNull(state.tailgateOpen)
+            assertFalse(state.hasOpenDoor)
+            assertEquals(0, state.renderMask)
+        }
+    }
+
+    @Test
+    fun tailgateAddsItsOwnRenderBitWithoutChangingTheFourDoors() {
+        for (mask in 0..15) {
+            val doors = DoorStates.fromStatusByte(mask)
+            assertEquals(mask, doors.renderMask)
+            assertEquals(mask, doors.copy(tailgateOpen = false).renderMask)
+            val tailgateOpen = doors.copy(tailgateOpen = true)
+            assertEquals(mask + 16, tailgateOpen.renderMask)
+            assertTrue(tailgateOpen.hasOpenDoor)
+        }
+    }
+
+    @Test
     fun decodesTheVerifiedFourDoorBitset() {
         val allClosed = frame(0x20)
         val door1 = frame(0x21)

@@ -56,6 +56,10 @@
     <string name="door_rear_driver">3 · Posteriore guidatore</string>
     <string name="door_rear_passenger">4 · Posteriore passeggero</string>
     <string name="doors_preview_hint">Solo anteprima: seleziona gli sportelli e torna alla Home. Automatico CAN ripristina i segnali reali. L’anteprima luci vale anche per la vista dall’alto.</string>
+    <string name="tailgate_label">Portellone posteriore</string>
+    <string name="tailgate_open">Aperto</string>
+    <string name="tailgate_closed">Chiuso</string>
+    <string name="tailgate_can_pending">Segnale CAN portellone da verificare</string>
     <string name="indicator_lights_on">Luci esterne accese</string>
     <string name="indicator_lights_off">Luci esterne spente</string>
     <string name="indicator_lights_waiting">In attesa del segnale luci</string>

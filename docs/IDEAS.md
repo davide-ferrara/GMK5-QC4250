@@ -9,18 +9,23 @@ con retrocamera, MCU o servizi OEM.
 
 - Creare un render della Golf coerente con la vista attuale, con fari spenti e
   accesi.
-- Usare 16 render completi dall’alto per le combinazioni dei quattro sportelli,
+- Usare 32 render completi dall’alto per quattro sportelli e portellone,
   senza livelli separati per le porte. I bit 1, 2, 4, 8 indicano rispettivamente
   anteriore guidatore, anteriore passeggero, posteriore guidatore e posteriore
-  passeggero; selezionano `golf_top_00.webp` … `golf_top_15.webp`.
+  passeggero; il bit 16 indica il portellone. Selezionano `golf_top_00.webp` …
+  `golf_top_31.webp`. Sono bit interni per il render, non una mappa CAN.
+- [ ] Verificare il segnale CAN portellone: ipotesi `SS & 0x10`, documentata
+  in CANBUS.md ma disattivata. Fino alla prova, portellone disponibile tramite
+  anteprima in Info; diagnostica CAN indica stato da verificare.
 - Con almeno uno sportello aperto mostrare la vista dall’alto; con tutti chiusi
   tornare alla vista attuale senza ripetere l’intro. La velocità in movimento
   mantiene la precedenza. In Info è disponibile una simulazione solo visiva,
   compresa la vista dall’alto con tutti chiusi, e il ritorno ad Automatico CAN.
-- [x] Renderizzato l’overlay dei fari dalla stessa camera ortografica dei 16
+- [x] Renderizzato l’overlay dei fari dalla stessa camera ortografica dei 32
   render, con bloom e dissolvenza collegati al CAN e all’anteprima luci in Info.
-  Le luci rimangono l’unico overlay: nessuna duplicazione delle 16 immagini
-  per luci on/off. L’overlay segue scala e centratura della vista dall’alto.
+  Le luci rimangono l’unico overlay: nessuna duplicazione delle 32 immagini
+  per luci on/off. Due overlay, portellone chiuso/aperto, seguono lo spostamento
+  dei fanali interni oltre a scala e centratura della vista dall’alto.
 - Tenere una variante di fallback già composta per i dispositivi su cui la
   composizione o il video 3D risultassero troppo pesanti.
 - Quando luci e sportelli cambiano insieme, applicare una breve dissolvenza

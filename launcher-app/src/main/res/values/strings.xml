@@ -59,6 +59,10 @@
     <string name="door_rear_driver">3 · Rear driver</string>
     <string name="door_rear_passenger">4 · Rear passenger</string>
     <string name="doors_preview_hint">Visual preview only: select doors and return to Home. Automatic CAN restores live signals. The lights preview also applies to the top view.</string>
+    <string name="tailgate_label">Tailgate</string>
+    <string name="tailgate_open">Open</string>
+    <string name="tailgate_closed">Closed</string>
+    <string name="tailgate_can_pending">Tailgate CAN signal not verified</string>
     <string name="indicator_lights_on">Exterior lights on</string>
     <string name="indicator_lights_off">Exterior lights off</string>
     <string name="indicator_lights_waiting">Waiting for exterior-light signal</string>

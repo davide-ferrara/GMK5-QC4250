@@ -182,6 +182,22 @@ It decodes the low four bits into a read-only `DoorStates` flow and bit `0x20`
 into a separate nullable parking-brake flow; it does not call `setValue`,
 `setCanbusDataToUser`, or `deviceOnkey`.
 
+### Tailgate: unverified hypothesis, not enabled
+
+The rear tailgate render is available in Info as a visual preview. The CAN
+decoder leaves `tailgateOpen = null`; unknown is not reported as closed.
+Candidate only: bit `0x10` in the same `SS` byte, which could give `0x20 ->
+0x30` with the parking brake applied and the four side doors closed. This is
+an inference from the unused bit, **not an observed frame**. `0x20` is already
+the verified parking-brake bit and must not be used for the tailgate.
+
+Before enabling decoding, capture repeated closed/open/closed tailgate cycles
+with all four doors closed, then repeat with one side door open and with the
+parking brake released/applied. Compare the complete frames and verify the
+candidate tracks only the tailgate; do not send guessed frames to the bus.
+The UI render bit `16` is an internal image index, independent of this CAN guess.
+The front hood is outside the current UI scope.
+
 ### Vehicle speed: signed 16-bit field
 
 During slow forward and reverse parking movements, frames of this form changed

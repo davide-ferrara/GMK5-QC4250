@@ -215,7 +215,10 @@ fun GolfLauncherApp(
                     parkingBrakePreview = parkingBrakePreview,
                     onParkingBrakePreviewChange = { parkingBrakePreview = it },
                     doorsPreview = doorsPreview,
-                    onDoorsPreviewChange = { doorsPreview = it },
+                    onDoorsPreviewChange = {
+                        doorsPreview = it
+                        homePreview = HomePreview.Automatic
+                    },
                     onAccentThemeChange = { selectedTheme ->
                         accentTheme = selectedTheme
                         preferences.edit()
@@ -533,7 +536,7 @@ private fun SpeedDisplay(speedKph: Float, modifier: Modifier = Modifier) {
 
 /** Match either the perspective frame (FillBounds) or the square top view (Fit). */
 @Composable
-internal fun CarLightsOverlay(lightsOn: Boolean, topView: Boolean = false) {
+internal fun CarLightsOverlay(lightsOn: Boolean, topView: Boolean = false, tailgateOpen: Boolean = false) {
     val opacity by animateFloatAsState(
         targetValue = if (lightsOn) 1f else 0f,
         animationSpec = tween(220),
@@ -548,7 +551,11 @@ internal fun CarLightsOverlay(lightsOn: Boolean, topView: Boolean = false) {
     ) {
         // A translucent lens mask retains the details of the original render.
         Image(
-            painter = painterResource(if (topView) R.drawable.golf_top_lights_overlay else R.drawable.golf_lights_overlay),
+            painter = painterResource(when {
+                topView && tailgateOpen -> R.drawable.golf_top_tailgate_lights_overlay
+                topView -> R.drawable.golf_top_lights_overlay
+                else -> R.drawable.golf_lights_overlay
+            }),
             contentDescription = null,
             contentScale = if (topView) ContentScale.Fit else ContentScale.FillBounds,
             alpha = 0.55f,
@@ -585,8 +592,12 @@ internal fun CarLightsOverlay(lightsOn: Boolean, topView: Boolean = false) {
             if (topView) {
                 bloom(403f, 179f, 32f, Color(0xD9FFF0CE))
                 bloom(621f, 179f, 32f, Color(0xD9FFF0CE))
-                bloom(380f, 838f, 22f, Color(0x99FF3020))
-                bloom(644f, 838f, 22f, Color(0x99FF3020))
+                bloom(380f, if (tailgateOpen) 828f else 838f, 22f, Color(0x99FF3020))
+                bloom(644f, if (tailgateOpen) 828f else 838f, 22f, Color(0x99FF3020))
+                if (tailgateOpen) {
+                    bloom(411f, 865f, 18f, Color(0x99FF3020))
+                    bloom(613f, 865f, 18f, Color(0x99FF3020))
+                }
             } else {
                 bloom(404f, 352f, 30f, Color(0xD9FFF0CE))
                 bloom(257f, 335f, 20f, Color(0xBFFFF0CE))
@@ -779,6 +790,15 @@ private fun ProjectInfoScreen(
                 label = stringResource(R.string.doors_label),
                 value = doorStates.label(context),
                 valueColor = doorStates.color,
+            )
+            InfoRow(
+                label = stringResource(R.string.tailgate_label),
+                value = stringResource(when (doorStates?.tailgateOpen) {
+                    true -> R.string.tailgate_open
+                    false -> R.string.tailgate_closed
+                    null -> R.string.tailgate_can_pending
+                }),
+                valueColor = if (doorStates?.tailgateOpen == true) Color(0xFFF1B75B) else Color(0xFF8D9AA7),
             )
             InfoRow(
                 label = stringResource(R.string.can_speed_label),
@@ -1073,6 +1093,7 @@ private fun DoorStates?.label(context: Context): String = when {
             "2".takeIf { door2FrontPassenger },
             "3".takeIf { door3RearDriver },
             "4".takeIf { door4RearPassenger },
+            context.getString(R.string.tailgate_label).takeIf { tailgateOpen == true },
         ).joinToString(", "),
     )
 }
