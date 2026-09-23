@@ -38,8 +38,8 @@ class VehicleSignals(context: Context) {
     val exteriorLights: StateFlow<ExteriorLightsState> = _exteriorLights.asStateFlow()
     private val _doors = MutableStateFlow<DoorStates?>(null)
     val doors: StateFlow<DoorStates?> = _doors.asStateFlow()
-    private val _ignitionOn = MutableStateFlow<Boolean?>(null)
-    val ignitionOn: StateFlow<Boolean?> = _ignitionOn.asStateFlow()
+    private val _parkingBrakeApplied = MutableStateFlow<Boolean?>(null)
+    val parkingBrakeApplied: StateFlow<Boolean?> = _parkingBrakeApplied.asStateFlow()
     private val _vehicleSpeedKph = MutableStateFlow(0f)
     val vehicleSpeedKph: StateFlow<Float> = _vehicleSpeedKph.asStateFlow()
     private val _lastVehicleSpeedKph = MutableStateFlow<Float?>(null)
@@ -78,7 +78,7 @@ class VehicleSignals(context: Context) {
             val frame = data.createByteArray()
             val declaredSize = data.readInt()
             doorStatesFromFrame(frame, declaredSize)?.let(::updateRawDoorStates)
-            ignitionOnFromFrame(frame, declaredSize)?.let { _ignitionOn.value = it }
+            parkingBrakeAppliedFromFrame(frame, declaredSize)?.let { _parkingBrakeApplied.value = it }
             vehicleSpeedKphFromFrame(frame, declaredSize)?.let(::updateVehicleSpeed)
             reply?.writeNoException()
             return true
@@ -234,7 +234,7 @@ class VehicleSignals(context: Context) {
         private const val CANBUS_CALLBACK_ON_RESULT = 1
         private const val CANBUS_RETRY_AFTER_MS = 2_000L
         private const val SPEED_STALE_AFTER_MS = 1_500L
-        private const val IGNITION_ON_BIT = 0x20
+        private const val PARKING_BRAKE_APPLIED_BIT = 0x20
 
         /**
          * Decodes the verified door-status frame, `2E 41 06 01 SS ...`.
@@ -249,11 +249,11 @@ class VehicleSignals(context: Context) {
             return DoorStates.fromStatusByte(statusByte)
         }
 
-        /** Reads the user-confirmed ignition/key-on bit from `2E 41 06 01 SS ...`. */
-        internal fun ignitionOnFromFrame(frame: ByteArray?, declaredSize: Int): Boolean? {
+        /** Reads the user-confirmed parking-brake bit from `2E 41 06 01 SS ...`. */
+        internal fun parkingBrakeAppliedFromFrame(frame: ByteArray?, declaredSize: Int): Boolean? {
             if (!isDoorStatusFrame(frame, declaredSize)) return null
             val statusByte = frame?.getOrNull(4)?.unsigned() ?: return null
-            return statusByte and IGNITION_ON_BIT != 0
+            return statusByte and PARKING_BRAKE_APPLIED_BIT != 0
         }
 
         private fun isDoorStatusFrame(frame: ByteArray?, declaredSize: Int): Boolean {

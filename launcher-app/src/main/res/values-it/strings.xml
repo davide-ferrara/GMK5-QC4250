@@ -63,16 +63,17 @@
     <string name="hood_label">Cofano</string>
     <string name="hood_open">Aperto</string>
     <string name="hood_closed">Chiuso</string>
-    <string name="hood_can_pending">In attesa del segnale OEM del cofano</string>
+    <string name="hood_can_pending">In attesa del segnale CAN del cofano</string>
     <string name="indicator_lights_on">Luci esterne accese</string>
     <string name="indicator_lights_off">Luci esterne spente</string>
     <string name="indicator_lights_waiting">In attesa del segnale luci</string>
-    <string name="indicator_ignition_on">Quadro acceso</string>
-    <string name="indicator_ignition_off">Quadro spento</string>
-    <string name="indicator_ignition_waiting">In attesa del segnale CAN del quadro</string>
-    <string name="ignition_preview_label">Anteprima quadro</string>
-    <string name="ignition_preview_auto">Automatico CAN</string>
-    <string name="ignition_preview_on">Acceso</string>
-    <string name="ignition_preview_off">Spento</string>
-    <string name="ignition_preview_hint">Solo anteprima visiva. Seleziona uno stato e torna alla Home per controllare la spia di accensione ambra. Automatico CAN ripristina il segnale reale; la diagnostica CAN resta invariata.</string>
+    <string name="indicator_ignition_waiting">Segnale CAN del quadro da verificare</string>
+    <string name="indicator_parking_brake_applied">Freno di stazionamento inserito</string>
+    <string name="indicator_parking_brake_released">Freno di stazionamento rilasciato</string>
+    <string name="indicator_parking_brake_waiting">In attesa del segnale CAN del freno di stazionamento</string>
+    <string name="parking_brake_preview_label">Anteprima freno di stazionamento</string>
+    <string name="parking_brake_preview_auto">Automatico CAN</string>
+    <string name="parking_brake_preview_on">Inserito</string>
+    <string name="parking_brake_preview_off">Rilasciato</string>
+    <string name="parking_brake_preview_hint">Solo anteprima visiva. Seleziona uno stato e torna alla Home per controllare la spia P rossa. Automatico CAN ripristina il segnale reale; la diagnostica CAN resta invariata.</string>
 </resources>

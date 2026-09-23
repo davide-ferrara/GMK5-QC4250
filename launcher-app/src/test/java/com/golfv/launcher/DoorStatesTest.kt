@@ -30,12 +30,13 @@ class DoorStatesTest {
     }
 
     @Test
-    fun decodesTheUserConfirmedIgnitionBit() {
-        assertFalse(VehicleSignals.ignitionOnFromFrame(frame(0x00), 10)!!)
-        assertFalse(VehicleSignals.ignitionOnFromFrame(frame(0x10), 10)!!)
-        assertTrue(VehicleSignals.ignitionOnFromFrame(frame(0x20), 10)!!)
-        assertTrue(VehicleSignals.ignitionOnFromFrame(frame(0x30), 10)!!)
-        assertNull(VehicleSignals.ignitionOnFromFrame(frame(0x20), 9))
+    fun decodesTheUserConfirmedParkingBrakeBit() {
+        assertFalse(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x00), 10)!!)
+        assertFalse(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x02), 10)!!)
+        assertTrue(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x20), 10)!!)
+        assertTrue(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x22), 10)!!)
+        assertTrue(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x30), 10)!!)
+        assertNull(VehicleSignals.parkingBrakeAppliedFromFrame(frame(0x20), 9))
     }
 
     @Test

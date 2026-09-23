@@ -163,9 +163,10 @@ callback publishes a repeated frame in this shape:
 `0x10` is the verified hood-open state. During owner-operated open/close
 testing, the stable frame changed from `... 22 ...` (hood closed) to
 `... 32 ...` (hood open) and back, leaving the low four door bits unchanged.
-User testing also confirmed that bit `0x20` is the ignition/key-on state, not
-the parking brake. A short `0xA0` close transition was observed; bit `0x80`
-is not yet identified.
+User-operated parking-brake testing confirmed bit `0x20`: with the brake
+initially applied, the frame was `... 22 ...`; releasing it produced
+`... 02 ...`; three further apply/release cycles repeated the same transition.
+A short `0xA0` close transition was observed; bit `0x80` is not yet identified.
 
 | Door | Location | Open status byte | Bit |
 |---:|---|---:|---:|
@@ -177,13 +178,13 @@ is not yet identified.
 | State | On status byte | Bit |
 |---|---:|---:|
 | Hood open | `0x10` | `0x10` |
-| Ignition / key on | `0x20` | `0x20` |
+| Parking brake applied | `0x20` | `0x20` |
 
 The launcher registers only `setCanbusInterface` (transaction 3) while its
 main activity is visible and unregisters it with transaction 6 when it stops.
 It decodes the low four bits and the verified hood bit `0x10` into a read-only
-`DoorStates` flow, and bit `0x20` into a separate nullable ignition flow; it
-does not call `setValue`,
+`DoorStates` flow, and bit `0x20` into a separate nullable parking-brake flow;
+it does not call `setValue`,
 `setCanbusDataToUser`, or `deviceOnkey`.
 
 ### Tailgate: not yet calibrated
@@ -194,10 +195,11 @@ decoder leaves `tailgateOpen = null`; unknown is not reported as closed. Bit
 the tailgate.
 
 Before enabling decoding, capture repeated closed/open/closed tailgate cycles
-with all four doors closed, then repeat with one side door open and with
-ignition off/on. Compare the complete frames and verify a bit that tracks only
-the tailgate; do not send guessed frames to the bus. The UI render bit `16` is
-an internal image index, independent of the raw CAN status byte.
+with all four doors closed, then repeat with one side door open and with the
+parking brake applied/released. Compare the complete frames and verify a bit
+that tracks only the tailgate; do not send guessed frames to the bus. The UI
+render bit `16` is an internal image index, independent of the raw CAN status
+byte.
 
 ### Hood: verified raw bit
 
@@ -266,7 +268,7 @@ property, setting, or distinct broadcast on this configuration:
 | Forward gears | First and second were selected and returned to neutral repeatedly while stationary, with clutch and brake applied | No repeatable direct gear-position frame. Reverse remains readable through its dedicated camera trigger. |
 | Central locking | Locked then unlocked with all doors closed | No distinct lock/unlock frame; the previously seen `0x80` status bit did not recur and remains unidentified. |
 | MFA / trip-computer data | The instrument cluster has no MFA controls or selectable driving-data pages | No in-car reference for odometer, trip distance, fuel, or external-temperature frames. |
-| ACC / ignition | The door-status frame's `0x20` bit was confirmed in vehicle testing to follow ignition/key-on; transitions `2E 41 02 03 40 79` and `2E 41 02 03 00 B9` were also observed with concurrent changes | The launcher exposes only the confirmed `0x20` state. The `2E 41 02` frames remain uncalibrated. |
+| ACC / ignition | No controlled ignition test yet; `2E 41 02 03 40 79` and `2E 41 02 03 00 B9` were observed with concurrent changes | The launcher leaves the quadro icon in the unverified state. The `2E 41 02` frames remain uncalibrated. |
 | Engine running / RPM | A varying `2E 14 01 VV CC` frame was observed with the engine running and `VV=0` after it stopped | Meaning and scale not calibrated. |
 | Turn indicators | Left and right indicators enabled and disabled separately | No distinct event. |
 | Hazard lights | Hazard lights enabled and disabled | No distinct event. |
@@ -296,7 +298,7 @@ this unit, the useful confirmed inputs are currently:
 
 1. binary exterior-light state;
 2. individual state of all four doors;
-3. ignition/key-on state (`0x20` in the door-status frame);
+3. parking-brake applied/released state (`0x20` in the door-status frame);
 4. hood state (`0x10` in the door-status frame);
 5. signed vehicle speed at `0.01 km/h` resolution;
 6. reverse/rear-camera state.

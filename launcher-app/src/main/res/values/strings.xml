@@ -66,16 +66,17 @@
     <string name="hood_label">Hood</string>
     <string name="hood_open">Open</string>
     <string name="hood_closed">Closed</string>
-    <string name="hood_can_pending">Waiting for OEM hood signal</string>
+    <string name="hood_can_pending">Waiting for hood CAN signal</string>
     <string name="indicator_lights_on">Exterior lights on</string>
     <string name="indicator_lights_off">Exterior lights off</string>
     <string name="indicator_lights_waiting">Waiting for exterior-light signal</string>
-    <string name="indicator_ignition_on">Ignition on</string>
-    <string name="indicator_ignition_off">Ignition off</string>
-    <string name="indicator_ignition_waiting">Waiting for ignition CAN signal</string>
-    <string name="ignition_preview_label">Ignition preview</string>
-    <string name="ignition_preview_auto">Automatic CAN</string>
-    <string name="ignition_preview_on">On</string>
-    <string name="ignition_preview_off">Off</string>
-    <string name="ignition_preview_hint">Visual preview only. Select a state, then return to Home to check the amber power indicator. Automatic CAN restores the live signal; CAN diagnostics stay unchanged.</string>
+    <string name="indicator_ignition_waiting">Ignition CAN signal not verified</string>
+    <string name="indicator_parking_brake_applied">Parking brake applied</string>
+    <string name="indicator_parking_brake_released">Parking brake released</string>
+    <string name="indicator_parking_brake_waiting">Waiting for parking-brake CAN signal</string>
+    <string name="parking_brake_preview_label">Parking-brake preview</string>
+    <string name="parking_brake_preview_auto">Automatic CAN</string>
+    <string name="parking_brake_preview_on">Applied</string>
+    <string name="parking_brake_preview_off">Released</string>
+    <string name="parking_brake_preview_hint">Visual preview only. Select a state, then return to Home to check the red P indicator. Automatic CAN restores the live signal; CAN diagnostics stay unchanged.</string>
 </resources>

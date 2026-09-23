@@ -103,10 +103,10 @@ private enum class LightsPreview(val label: Int) {
     Off(R.string.lights_preview_off),
 }
 
-private enum class IgnitionPreview(val label: Int) {
-    Automatic(R.string.ignition_preview_auto),
-    On(R.string.ignition_preview_on),
-    Off(R.string.ignition_preview_off),
+private enum class ParkingBrakePreview(val label: Int) {
+    Automatic(R.string.parking_brake_preview_auto),
+    On(R.string.parking_brake_preview_on),
+    Off(R.string.parking_brake_preview_off),
 }
 
 private enum class HomePreview(val label: Int) {
@@ -130,7 +130,7 @@ fun GolfLauncherApp(
     doors: StateFlow<DoorStates?>,
     vehicleSpeedKph: StateFlow<Float>,
     lastVehicleSpeedKph: StateFlow<Float?>,
-    ignitionOn: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
+    parkingBrakeApplied: StateFlow<Boolean?> = MutableStateFlow<Boolean?>(null),
     onSplashFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
@@ -143,12 +143,12 @@ fun GolfLauncherApp(
     var screen by remember { mutableStateOf(LauncherScreen.Splash) }
     val exteriorLightsState by exteriorLights.collectAsState()
     val doorStates by doors.collectAsState()
-    val ignitionIsOn by ignitionOn.collectAsState()
+    val parkingBrakeIsApplied by parkingBrakeApplied.collectAsState()
     val speedKph by vehicleSpeedKph.collectAsState()
     val lastSpeedKph by lastVehicleSpeedKph.collectAsState()
     // Visual override only; never change the CAN state or persist a test mode.
     var lightsPreview by remember { mutableStateOf(LightsPreview.Automatic) }
-    var ignitionPreview by remember { mutableStateOf(IgnitionPreview.Automatic) }
+    var parkingBrakePreview by remember { mutableStateOf(ParkingBrakePreview.Automatic) }
     var doorsPreview by remember { mutableStateOf<Int?>(null) }
     var homePreview by remember { mutableStateOf(HomePreview.Automatic) }
     val doorMask = doorsPreview ?: (doorStates?.renderMask ?: 0)
@@ -162,10 +162,10 @@ fun GolfLauncherApp(
         LightsPreview.On -> ExteriorLightsState.On
         LightsPreview.Off -> ExteriorLightsState.Off
     }
-    val indicatorIgnitionOn = when (ignitionPreview) {
-        IgnitionPreview.Automatic -> ignitionIsOn
-        IgnitionPreview.On -> true
-        IgnitionPreview.Off -> false
+    val indicatorParkingBrakeApplied = when (parkingBrakePreview) {
+        ParkingBrakePreview.Automatic -> parkingBrakeIsApplied
+        ParkingBrakePreview.On -> true
+        ParkingBrakePreview.Off -> false
     }
 
     GolfLauncherTheme(accentTheme) {
@@ -190,7 +190,7 @@ fun GolfLauncherApp(
                 speedKph = speedKph,
                 lightsOn = lightsOn,
                 lightsState = indicatorLightsState,
-                ignitionOn = indicatorIgnitionOn,
+                parkingBrakeApplied = indicatorParkingBrakeApplied,
                 doorMask = doorMask,
                 forceTopView = doorsPreview != null,
                 homePreview = homePreview,
@@ -215,8 +215,8 @@ fun GolfLauncherApp(
                     onHomePreviewChange = { homePreview = it },
                     lightsPreview = lightsPreview,
                     onLightsPreviewChange = { lightsPreview = it },
-                    ignitionPreview = ignitionPreview,
-                    onIgnitionPreviewChange = { ignitionPreview = it },
+                    parkingBrakePreview = parkingBrakePreview,
+                    onParkingBrakePreviewChange = { parkingBrakePreview = it },
                     doorsPreview = doorsPreview,
                     onDoorsPreviewChange = {
                         doorsPreview = it
@@ -266,7 +266,7 @@ private fun HomeScreen(
     speedKph: Float,
     lightsOn: Boolean,
     lightsState: ExteriorLightsState,
-    ignitionOn: Boolean?,
+    parkingBrakeApplied: Boolean?,
     doorMask: Int,
     forceTopView: Boolean,
     homePreview: HomePreview,
@@ -307,8 +307,8 @@ private fun HomeScreen(
                     onOpenApps = onOpenApps,
                 )
                 VehicleSignalIndicators(
+                    parkingBrakeApplied = parkingBrakeApplied,
                     lightsState = lightsState,
-                    ignitionOn = ignitionOn,
                 )
             }
         }
@@ -338,13 +338,33 @@ private fun HomeScreen(
 
 @Composable
 private fun VehicleSignalIndicators(
+    parkingBrakeApplied: Boolean?,
     lightsState: ExteriorLightsState,
-    ignitionOn: Boolean?,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        VehicleSignalIndicator(
+            icon = R.drawable.ic_ignition_indicator,
+            description = stringResource(R.string.indicator_ignition_waiting),
+            active = false,
+            activeColor = Color(0xFFFFC247),
+            testTag = "ignitionStatusIndicator",
+        )
+        VehicleSignalIndicator(
+            icon = R.drawable.ic_parking_brake_indicator,
+            description = stringResource(
+                when (parkingBrakeApplied) {
+                    true -> R.string.indicator_parking_brake_applied
+                    false -> R.string.indicator_parking_brake_released
+                    null -> R.string.indicator_parking_brake_waiting
+                },
+            ),
+            active = parkingBrakeApplied == true,
+            activeColor = Color(0xFFFF6B6B),
+            testTag = "parkingBrakeStatusIndicator",
+        )
         VehicleSignalIndicator(
             icon = R.drawable.ic_light_indicator,
             description = stringResource(
@@ -357,19 +377,6 @@ private fun VehicleSignalIndicators(
             active = lightsState == ExteriorLightsState.On,
             activeColor = Color(0xFF70E59B),
             testTag = "lightsStatusIndicator",
-        )
-        VehicleSignalIndicator(
-            icon = R.drawable.ic_ignition_indicator,
-            description = stringResource(
-                when (ignitionOn) {
-                    true -> R.string.indicator_ignition_on
-                    false -> R.string.indicator_ignition_off
-                    null -> R.string.indicator_ignition_waiting
-                },
-            ),
-            active = ignitionOn == true,
-            activeColor = Color(0xFFFFC247),
-            testTag = "ignitionStatusIndicator",
         )
     }
 }
@@ -735,8 +742,8 @@ private fun ProjectInfoScreen(
     onHomePreviewChange: (HomePreview) -> Unit,
     lightsPreview: LightsPreview,
     onLightsPreviewChange: (LightsPreview) -> Unit,
-    ignitionPreview: IgnitionPreview,
-    onIgnitionPreviewChange: (IgnitionPreview) -> Unit,
+    parkingBrakePreview: ParkingBrakePreview,
+    onParkingBrakePreviewChange: (ParkingBrakePreview) -> Unit,
     doorsPreview: Int?,
     onDoorsPreviewChange: (Int?) -> Unit,
     onAccentThemeChange: (AccentTheme) -> Unit,
@@ -866,22 +873,22 @@ private fun ProjectInfoScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                stringResource(R.string.ignition_preview_label),
+                stringResource(R.string.parking_brake_preview_label),
                 color = Color(0xFF8D9AA7),
                 fontSize = 18.sp,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IgnitionPreview.entries.forEach { mode ->
+                ParkingBrakePreview.entries.forEach { mode ->
                     FilterChip(
-                        selected = ignitionPreview == mode,
-                        onClick = { onIgnitionPreviewChange(mode) },
+                        selected = parkingBrakePreview == mode,
+                        onClick = { onParkingBrakePreviewChange(mode) },
                         label = { Text(stringResource(mode.label)) },
-                        modifier = Modifier.testTag("ignitionPreview${mode.name}"),
+                        modifier = Modifier.testTag("parkingBrakePreview${mode.name}"),
                     )
                 }
             }
             Text(
-                stringResource(R.string.ignition_preview_hint),
+                stringResource(R.string.parking_brake_preview_hint),
                 color = Color(0xFF8D9AA7),
                 fontSize = 14.sp,
             )
