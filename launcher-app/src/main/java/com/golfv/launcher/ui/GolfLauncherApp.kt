@@ -440,6 +440,7 @@ private fun CarBackground(
     val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else speedKph
     var videoFailed by remember { mutableStateOf(false) }
     var introComplete by remember { mutableStateOf(false) }
+    var videoFirstFrameReady by remember { mutableStateOf(false) }
     val replayInteractionSource = remember { MutableInteractionSource() }
     val showTopView = homePreview == HomePreview.Automatic && (doorMask != 0 || forceTopView)
     // A stop after driving must not restart the intro.
@@ -499,17 +500,32 @@ private fun CarBackground(
                     )
                     CarLightsOverlay(lightsOn)
                 } else {
-                    AndroidView(
-                        factory = { context ->
-                            CarWebView(
-                                context,
-                                onFailed = { videoFailed = true },
-                                onFinished = { introComplete = true },
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Keep the final still visible while WebView prepares its
+                        // transparent canvas. Remove it only after the first video
+                        // frame has actually been painted, avoiding a blank flash.
+                        if (!videoFirstFrameReady) {
+                            Image(
+                                painter = painterResource(R.drawable.golf_mk5_final),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillBounds,
+                                modifier = Modifier.fillMaxSize(),
                             )
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        onRelease = { it.release() },
-                    )
+                            CarLightsOverlay(lightsOn)
+                        }
+                        AndroidView(
+                            factory = { context ->
+                                CarWebView(
+                                    context,
+                                    onFirstFrame = { videoFirstFrameReady = true },
+                                    onFailed = { videoFailed = true },
+                                    onFinished = { introComplete = true },
+                                )
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            onRelease = { it.release() },
+                        )
+                    }
                 }
             }
 
@@ -524,7 +540,10 @@ private fun CarBackground(
                     .clickable(
                         interactionSource = replayInteractionSource,
                         indication = null,
-                        onClick = { introComplete = false },
+                        onClick = {
+                            videoFirstFrameReady = false
+                            introComplete = false
+                        },
                     ),
             )
         }
@@ -636,6 +655,7 @@ internal fun CarLightsOverlay(lightsOn: Boolean, topView: Boolean = false, tailg
 
 private class CarWebView(
     context: Context,
+    onFirstFrame: () -> Unit,
     onFailed: () -> Unit,
     onFinished: () -> Unit,
 ) : WebView(context) {
@@ -654,6 +674,11 @@ private class CarWebView(
         settings.allowFileAccessFromFileURLs = true
         addJavascriptInterface(
             object {
+                @JavascriptInterface
+                fun onVideoFirstFrame() {
+                    post { onFirstFrame() }
+                }
+
                 @JavascriptInterface
                 fun onVideoError() {
                     post { onFailed() }
@@ -709,7 +734,8 @@ car.addEventListener('error',()=>CarVideoNative.onVideoError());
 car.addEventListener('ended',()=>CarVideoNative.onVideoFinished());
 const frameInterval=1000/30;
 let lastPaint=0;
-function drawCarFrame(now){if(car.readyState>=2&&now-lastPaint>=frameInterval){lastPaint=now;paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600)}if(!car.paused&&!car.ended)requestAnimationFrame(drawCarFrame)}
+let firstFrameReported=false;
+function drawCarFrame(now){if(car.readyState>=2&&now-lastPaint>=frameInterval){lastPaint=now;paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600);if(!firstFrameReported){firstFrameReported=true;CarVideoNative.onVideoFirstFrame()}}if(!car.paused&&!car.ended)requestAnimationFrame(drawCarFrame)}
 car.addEventListener('play',()=>requestAnimationFrame(drawCarFrame));
 car.play().catch(()=>CarVideoNative.onVideoError());
 </script></body></html>
