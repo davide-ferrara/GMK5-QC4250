@@ -439,13 +439,15 @@ private fun CarBackground(
     }
     val displayedSpeedKph = if (homePreview == HomePreview.Speed) 0f else speedKph
     var videoFailed by remember { mutableStateOf(false) }
-    var introComplete by remember { mutableStateOf(false) }
+    var useStaticCar by remember { mutableStateOf(false) }
     var videoFirstFrameReady by remember { mutableStateOf(false) }
+    var videoFinished by remember { mutableStateOf(false) }
+    var activeCarWebView by remember { mutableStateOf<CarWebView?>(null) }
     val replayInteractionSource = remember { MutableInteractionSource() }
     val showTopView = homePreview == HomePreview.Automatic && (doorMask != 0 || forceTopView)
     // A stop after driving must not restart the intro.
     LaunchedEffect(showSpeed, showTopView) {
-        if (showSpeed || showTopView) introComplete = true
+        if (showSpeed || showTopView) useStaticCar = true
     }
 
     Box(
@@ -491,7 +493,7 @@ private fun CarBackground(
                         lightsOn = lightsOn,
                         modifier = Modifier.fillMaxSize().padding(top = 72.dp, bottom = 104.dp),
                     )
-                } else if (introComplete || videoFailed) {
+                } else if (useStaticCar || videoFailed) {
                     Image(
                         painter = painterResource(R.drawable.golf_mk5_final),
                         contentDescription = null,
@@ -519,12 +521,20 @@ private fun CarBackground(
                                     context,
                                     onFirstFrame = { videoFirstFrameReady = true },
                                     onFailed = { videoFailed = true },
-                                    onFinished = { introComplete = true },
-                                )
+                                    onFinished = { videoFinished = true },
+                                ).also { activeCarWebView = it }
                             },
-                            modifier = Modifier.fillMaxSize(),
-                            onRelease = { it.release() },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    alpha = if (videoFirstFrameReady) 1f else 0f
+                                },
+                            onRelease = { releasedView ->
+                                if (activeCarWebView === releasedView) activeCarWebView = null
+                                releasedView.release()
+                            },
                         )
+                        if (videoFinished) CarLightsOverlay(lightsOn)
                     }
                 }
             }
@@ -541,8 +551,15 @@ private fun CarBackground(
                         interactionSource = replayInteractionSource,
                         indication = null,
                         onClick = {
-                            videoFirstFrameReady = false
-                            introComplete = false
+                            val currentVideo = activeCarWebView
+                            if (!useStaticCar && currentVideo != null) {
+                                videoFinished = false
+                                currentVideo.replay()
+                            } else {
+                                videoFirstFrameReady = false
+                                videoFinished = false
+                                useStaticCar = false
+                            }
                         },
                     ),
             )
@@ -714,6 +731,10 @@ private class CarWebView(
 
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean = false
 
+    fun replay() {
+        evaluateJavascript("window.replayCarVideo && window.replayCarVideo()", null)
+    }
+
     fun release() {
         stopLoading()
         removeJavascriptInterface("CarVideoNative")
@@ -731,12 +752,13 @@ const car=document.getElementById('car');
 const stage=document.getElementById('stage');
 const paint=stage.getContext('2d',{alpha:true});
 car.addEventListener('error',()=>CarVideoNative.onVideoError());
-car.addEventListener('ended',()=>CarVideoNative.onVideoFinished());
+car.addEventListener('ended',()=>{paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600);CarVideoNative.onVideoFinished()});
 const frameInterval=1000/30;
 let lastPaint=0;
 let firstFrameReported=false;
 function drawCarFrame(now){if(car.readyState>=2&&now-lastPaint>=frameInterval){lastPaint=now;paint.clearRect(0,0,1024,600);paint.drawImage(car,0,0,1024,600);if(!firstFrameReported){firstFrameReported=true;CarVideoNative.onVideoFirstFrame()}}if(!car.paused&&!car.ended)requestAnimationFrame(drawCarFrame)}
 car.addEventListener('play',()=>requestAnimationFrame(drawCarFrame));
+window.replayCarVideo=()=>{firstFrameReported=false;car.currentTime=0;car.play().catch(()=>CarVideoNative.onVideoError())};
 car.play().catch(()=>CarVideoNative.onVideoError());
 </script></body></html>
 """
