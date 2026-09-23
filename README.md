@@ -14,6 +14,14 @@ launcher's visual preview controls. The radio screen shows a simulated
 | All four doors open · tailgate closed | Radio · simulated 101.7 MHz |
 | ![Golf with all four doors open](./screenshots/launcher-doors-open.png) | ![Radio interface with simulated 101.7 MHz](./screenshots/radio-emulator.png) |
 
+### On-device photos
+
+The launcher running on the QC4250 head unit installed in the Golf Mk5.
+
+| Perspective Home view | Live CAN door and indicator view |
+| --- | --- |
+| ![Launcher Home view installed in the Golf Mk5](./screenshots/PXL_20260923_183127703.jpg) | ![Launcher showing the live driver-door and vehicle indicators](./screenshots/PXL_20260923_183143931.jpg) |
+
 ## Passwords
 
 - Factory Settings: `8888`
