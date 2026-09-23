@@ -70,7 +70,7 @@ internal fun ClockAndDate() {
         Text(
             text = dateText,
             color = Color(0xFFC2CAD3),
-            fontSize = 27.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Normal,
         )
     }
